@@ -59,16 +59,18 @@ Route::middleware(['auth', 'user'])->prefix('user')->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     // Konsultasi Forward Chaining
-    Route::get('/konsultasi/start', [KonsultasiController::class, 'startKonsultasi'])->name('konsultasi.start');
-    Route::get('/konsultasi/terakhir', [KonsultasiController::class, 'recent'])->name('konsultasi.recent');
-    Route::get('/konsultasi/{konsultasi}', [KonsultasiController::class, 'showQuestion'])->name('konsultasi.question');
-    Route::post('/konsultasi/{konsultasi}/answer', [KonsultasiController::class, 'processAnswer'])->name('konsultasi.answer');
-    Route::get('/konsultasi/{konsultasi}/result', [KonsultasiController::class, 'showResult'])->name('konsultasi.result');
-    Route::post('/konsultasi/pending', [KonsultasiController::class, 'pending'])->name('konsultasi.pending');
-    Route::get('/konsultasi/{konsultasi}/lanjutkan', action: [KonsultasiController::class, 'continueKonsultasi'])->name('konsultasi.lanjutkan');
-    Route::get('/konsultasi/{konsultasi}/cetak', [KonsultasiController::class, 'printKonsultasi'])->name('konsultasi.print');
-    Route::get('/konsultasi/{konsultasi}/session-summary', [KonsultasiController::class, 'showSessionSummary'])->name('konsultasi.session-summary');
-    Route::post('/konsultasi/{konsultasi}/continue-session', [KonsultasiController::class, 'continueSession'])->name('konsultasi.continue-session');
+    Route::prefix('konsultasi')->name('konsultasi.')->group(function () {
+        Route::get('/', [KonsultasiController::class, 'index'])->name('index');
+        Route::get('/create', [KonsultasiController::class, 'create'])->name('create');
+        Route::post('/store', [KonsultasiController::class, 'store'])->name('store');
+        Route::get('/{id}/question', [KonsultasiController::class, 'question'])->name('question');
+        Route::post('/{id}/answer', [KonsultasiController::class, 'answer'])->name('answer');
+        Route::get('/{id}/result', [KonsultasiController::class, 'result'])->name('result');
+        Route::get('/{id}/show', [KonsultasiController::class, 'show'])->name('show');
+        Route::post('/{id}/restart', [KonsultasiController::class, 'restart'])->name('restart');
+        Route::get('/{id}/export-pdf', [KonsultasiController::class, 'exportPdf'])->name('export.pdf');
+        Route::get('/{id}/progress', [KonsultasiController::class, 'getProgress'])->name('progress');
+    });
 
     // Riwayat Konsultasi
     Route::get('/riwayat', [RiwayatController::class, 'index'])->name('riwayat.index');
@@ -165,3 +167,26 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     //Logout
     Route::get('/logout', [AuthController::class, 'logout'])->name('logout.admin');
 });
+
+// Testing Routes (hanya untuk development)
+if (app()->environment('local')) {
+    Route::get('/test-forward-chaining', function () {
+        // Test forward chaining implementation
+        $konsultasi = App\Models\Konsultasi::latest()->first();
+        if ($konsultasi) {
+            $service = new App\Services\ForwardChainingService($konsultasi);
+            return response()->json($service->getPertanyaanSelanjutnya());
+        }
+        return response()->json(['error' => 'No consultation found']);
+    });
+
+    Route::get('/test-rules', function () {
+        // Test rules implementation
+        return response()->json([
+            'total_rules' => App\Models\Aturan::count(),
+            'active_rules' => App\Models\Aturan::active()->count(),
+            'total_facts' => App\Models\Fakta::count(),
+            'askable_facts' => App\Models\Fakta::askable()->count()
+        ]);
+    });
+}
