@@ -22,8 +22,4 @@ class RekomendasiNutrisi extends Model
         return $this->belongsTo(Solusi::class);
     }
 
-    public function sumberNutrisi()
-    {
-        return $this->hasMany(SumberNutrisi::class, 'nutrisi', 'nutrisi');
-    }
 }

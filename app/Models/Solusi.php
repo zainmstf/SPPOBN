@@ -18,6 +18,10 @@ class Solusi extends Model
         'is_default'
     ];
 
+    protected $casts = [
+        'is_default' => 'boolean'
+    ];
+
     public function rekomendasiNutrisi()
     {
         return $this->hasMany(RekomendasiNutrisi::class);
@@ -28,13 +32,4 @@ class Solusi extends Model
         return $this->hasMany(Aturan::class);
     }
 
-    public function konsultasi()
-    {
-        return $this->belongsToMany(Konsultasi::class, 'konsultasi_solusi');
-    }
-
-    public function inferensiLogs()
-    {
-        return $this->hasManyThrough(InferensiLog::class, Aturan::class);
-    }
 }

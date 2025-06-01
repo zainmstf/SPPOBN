@@ -14,10 +14,13 @@ class InferensiLog extends Model
         'konsultasi_id',
         'aturan_id',
         'fakta_terbentuk',
-        'premis_terpenuhi'
+        'premis_terpenuhi',
+        'waktu'
     ];
 
-    public $timestamps = false;
+    protected $casts = [
+        'waktu' => 'datetime'
+    ];
 
     public function konsultasi()
     {
@@ -27,10 +30,5 @@ class InferensiLog extends Model
     public function aturan()
     {
         return $this->belongsTo(Aturan::class);
-    }
-
-    public function faktaTerbentukData()
-    {
-        return $this->belongsTo(Fakta::class, 'fakta_terbentuk', 'kode');
     }
 }

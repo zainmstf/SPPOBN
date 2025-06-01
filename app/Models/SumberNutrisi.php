@@ -14,13 +14,18 @@ class SumberNutrisi extends Model
         'nutrisi',
         'jenis_sumber',
         'nama_sumber',
+        'image',
         'takaran',
-        'catatan',
-        'image'
+        'catatan'
     ];
 
-    public function rekomendasiNutrisi()
+    public function scopeByNutrisi($query, $nutrisi)
     {
-        return $this->belongsTo(RekomendasiNutrisi::class, 'nutrisi', 'nutrisi');
+        return $query->where('nutrisi', $nutrisi);
+    }
+
+    public function scopeByJenisSumber($query, $jenis)
+    {
+        return $query->where('jenis_sumber', $jenis);
     }
 }
