@@ -21,21 +21,28 @@ class Fakta extends Model
     ];
 
     protected $casts = [
-        'is_first' => 'boolean'
+        'is_first' => 'boolean',
+        'is_askable' => 'boolean',
+        'is_default' => 'boolean'
     ];
 
-    public function jawaban()
+    public function detailKonsultasi()
     {
         return $this->hasMany(DetailKonsultasi::class);
     }
 
-    public function nextFaktaYa()
+    public function scopeAskable($query)
     {
-        return $this->belongsTo(Fakta::class, 'next_if_yes', 'kode');
+        return $query->where('is_askable', true);
     }
 
-    public function nextFaktaTidak()
+    public function scopeByKategori($query, $kategori)
     {
-        return $this->belongsTo(Fakta::class, 'next_if_no', 'kode');
+        return $query->where('kategori', $kategori);
+    }
+
+    public function scopeFirst($query)
+    {
+        return $query->where('is_first', true);
     }
 }

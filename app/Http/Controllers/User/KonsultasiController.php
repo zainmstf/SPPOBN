@@ -1089,7 +1089,7 @@ class KonsultasiController extends Controller
                 $solusiAkhir->load('rekomendasiNutrisi.sumberNutrisi');
             }
         }
-        
+
 
         return view('user.konsultasi.result', compact('konsultasi', 'detailKonsultasi', 'inferensiLog', 'solusiAkhir', 'inferensiSolusi'));
     }
@@ -1124,12 +1124,5 @@ class KonsultasiController extends Controller
             return redirect()->route('konsultasi.question', $konsultasi->id);
         }
     }
-    
-}
-InferensiLog::create([
-    'konsultasi_id' => $konsultasi->id,
-    'aturan_id' => $bestInferenceOverall['aturan']->id,
-    'fakta_terbentuk' => $bestInferenceOverall['konklusi'],
-    'premis_terpenuhi' => implode(',', $bestInferenceOverall['premis']),
-]);
 
+}

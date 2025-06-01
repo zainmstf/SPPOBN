@@ -28,24 +28,43 @@ class Aturan extends Model
     {
         return $this->belongsTo(Solusi::class);
     }
-
-    public function logs()
+    public function inferensiLog()
     {
         return $this->hasMany(InferensiLog::class);
     }
-    public function premisFakta()
+
+    public function getPremisArray()
     {
-        $premisCodes = explode('^', $this->premis);
-        return Fakta::whereIn('kode', $premisCodes);
+        if (empty($this->premis)) {
+            return [];
+        }
+        return explode('^', $this->premis);
     }
 
-    public function konklusiFakta()
+    public function scopeActive($query)
     {
-        return $this->belongsTo(Fakta::class, 'konklusi', 'kode');
+        return $query->where('is_active', true);
     }
 
-    public function inferensiLogs()
+    public function scopeByJenisKonklusi($query, $jenis)
     {
-        return $this->hasMany(InferensiLog::class);
+        return $query->where('jenis_konklusi', $jenis);
+    }
+
+    public function checkPremiseTerpenuhi($faktaTersedia)
+    {
+        $premisArray = $this->getPremisArray();
+
+        if (empty($premisArray)) {
+            return false;
+        }
+
+        foreach ($premisArray as $premis) {
+            if (!in_array(trim($premis), $faktaTersedia)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
