@@ -20,8 +20,9 @@ class Konsultasi extends Model
     ];
 
     protected $casts = [
+        'hasil_konsultasi' => 'array',
+        'failed_rules' => 'array',
         'completed_at' => 'datetime',
-        'hasil_konsultasi' => 'array'
     ];
 
     public function user()
@@ -59,12 +60,21 @@ class Konsultasi extends Model
             ->toArray();
     }
 
+    public function getFaktaTidakTerpenuhi()
+    {
+        return $this->detailKonsultasi()
+            ->where('jawaban', 'tidak')
+            ->with('fakta')
+            ->get()
+            ->pluck('fakta.kode')
+            ->toArray();
+    }
+
     public function getFaktaAntara()
     {
-        return $this->inferensiLog()
-            ->where('fakta_terbentuk', 'like', 'FA%')
-            ->pluck('fakta_terbentuk')
-            ->toArray();
+        // Ambil fakta antara dari InferensiLog
+        $inferensiLogs = \App\Models\InferensiLog::where('konsultasi_id', $this->id)->get();
+        return $inferensiLogs->pluck('fakta_terbentuk')->toArray();
     }
 
     public function getSolusi()

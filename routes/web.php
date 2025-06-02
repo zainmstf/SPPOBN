@@ -70,6 +70,11 @@ Route::middleware(['auth', 'user'])->prefix('user')->group(function () {
         Route::post('/{id}/restart', [KonsultasiController::class, 'restart'])->name('restart');
         Route::get('/{id}/export-pdf', [KonsultasiController::class, 'exportPdf'])->name('export.pdf');
         Route::get('/{id}/progress', [KonsultasiController::class, 'getProgress'])->name('progress');
+        Route::get('/{konsultasi}/session-summary', [KonsultasiController::class, 'showSessionSummary'])->name('session-summary');
+        Route::post('/{konsultasi}/continue-session', [KonsultasiController::class, 'continueSession'])->name('continue-session');
+        Route::post('/pending', [KonsultasiController::class, 'pending'])->name('pending');
+        Route::get('/{konsultasi}/lanjutkan', action: [KonsultasiController::class, 'continueKonsultasi'])->name('lanjutkan');
+        Route::post('/complete', [KonsultasiController::class, 'complete'])->name('complete');
     });
 
     // Riwayat Konsultasi
@@ -167,26 +172,3 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     //Logout
     Route::get('/logout', [AuthController::class, 'logout'])->name('logout.admin');
 });
-
-// Testing Routes (hanya untuk development)
-if (app()->environment('local')) {
-    Route::get('/test-forward-chaining', function () {
-        // Test forward chaining implementation
-        $konsultasi = App\Models\Konsultasi::latest()->first();
-        if ($konsultasi) {
-            $service = new App\Services\ForwardChainingService($konsultasi);
-            return response()->json($service->getPertanyaanSelanjutnya());
-        }
-        return response()->json(['error' => 'No consultation found']);
-    });
-
-    Route::get('/test-rules', function () {
-        // Test rules implementation
-        return response()->json([
-            'total_rules' => App\Models\Aturan::count(),
-            'active_rules' => App\Models\Aturan::active()->count(),
-            'total_facts' => App\Models\Fakta::count(),
-            'askable_facts' => App\Models\Fakta::askable()->count()
-        ]);
-    });
-}

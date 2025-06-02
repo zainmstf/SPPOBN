@@ -3,106 +3,369 @@
 namespace App\Services;
 
 use App\Models\Konsultasi;
-use App\Models\Fakta;
 use App\Models\Aturan;
+use App\Models\Fakta;
 use App\Models\DetailKonsultasi;
 use App\Models\InferensiLog;
+use App\Models\Solusi;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ForwardChainingService
 {
-    private $konsultasi;
-    private $faktaTersedia = [];
-    private $aturanTerpakai = [];
+    protected $konsultasi;
+    protected $faktaTersedia = [];
+    protected $faktaAntara = [];
+    protected $solusiDitemukan = [];
+    protected $aturanTerpakai = [];
+    protected $sesiSekarang = 1;
 
     public function __construct(Konsultasi $konsultasi)
     {
         $this->konsultasi = $konsultasi;
+        $this->sesiSekarang = $konsultasi->sesi ?? 1;
         $this->loadFaktaTersedia();
     }
 
-    private function loadFaktaTersedia()
+    /**
+     * Load fakta yang sudah dijawab sebelumnya
+     */
+    protected function loadFaktaTersedia()
     {
-        // Load fakta dari jawaban user (F001, F002, dst)
-        $faktaDariJawaban = $this->konsultasi->detailKonsultasi()
+        // Load fakta dari jawaban user (ya)
+        $faktaJawaban = $this->konsultasi->detailKonsultasi()
             ->where('jawaban', 'ya')
             ->with('fakta')
             ->get()
             ->pluck('fakta.kode')
             ->toArray();
 
-        // Load fakta antara yang sudah terbentuk (FA001, FA002, dst)
-        $faktaAntara = $this->konsultasi->getFaktaAntara();
+        // Load fakta antara dari log inferensi
+        $faktaAntaraLog = $this->konsultasi->inferensiLog()
+            ->where('fakta_terbentuk', 'like', 'FA%')
+            ->pluck('fakta_terbentuk')
+            ->toArray();
 
-        $this->faktaTersedia = array_merge($faktaDariJawaban, $faktaAntara);
+        // Load solusi dari log inferensi
+        $solusiLog = $this->konsultasi->inferensiLog()
+            ->where('fakta_terbentuk', 'like', 'S%')
+            ->pluck('fakta_terbentuk')
+            ->toArray();
+
+        // Load aturan yang sudah terpakai
+        $this->aturanTerpakai = $this->konsultasi->inferensiLog()
+            ->pluck('aturan_id')
+            ->toArray();
+
+        $this->faktaTersedia = array_merge($faktaJawaban, $faktaAntaraLog, $solusiLog);
+        $this->faktaAntara = $faktaAntaraLog;
+        $this->solusiDitemukan = $solusiLog;
     }
 
-    public function getPertanyaanSelanjutnya()
+    /**
+     * Proses forward chaining untuk mendapatkan pertanyaan berikutnya
+     */
+    public function getNextQuestion()
     {
-        // Lakukan inferensi dulu untuk menghasilkan fakta antara
-        $this->runInference();
+        // Proses inferensi berdasarkan sesi
+        $this->prosesInferensi();
 
-        // Cek apakah sudah ada solusi
-        if ($this->hasSolution()) {
-            return $this->buildFinalResult();
+        // PERBAIKAN: Cek apakah sesi ini dapat menghasilkan fakta antara atau solusi
+        if (!$this->canSesiProgress()) {
+            return null; // Tidak bisa lanjut, sesi berakhir
         }
 
-        // Cari pertanyaan selanjutnya berdasarkan aturan yang belum terpenuhi
-        $nextFakta = $this->findNextQuestion();
+        // Cek apakah ada pertanyaan yang perlu dijawab di sesi ini
+        $aturanBelumTerpenuhi = $this->getAturanBelumTerpenuhi();
 
-        if (!$nextFakta) {
-            return $this->buildFinalResult();
+        if (empty($aturanBelumTerpenuhi)) {
+            return null; // Tidak ada pertanyaan lagi di sesi ini
+        }
+
+        // Ambil pertanyaan dari aturan pertama yang belum terpenuhi
+        foreach ($aturanBelumTerpenuhi as $aturan) {
+            $pertanyaanBelumDijawab = $this->getPertanyaanBelumDijawab($aturan);
+
+            if (!empty($pertanyaanBelumDijawab)) {
+                // Ambil pertanyaan pertama yang belum dijawab
+                $kodeFakta = $pertanyaanBelumDijawab[0];
+                $fakta = Fakta::where('kode', $kodeFakta)->first();
+
+                if ($fakta) {
+                    return $fakta;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * METODE BARU: Cek apakah sesi tertentu menghasilkan fakta antara atau solusi
+     */
+    public function hasSesiResults($sesi)
+    {
+        $prefixAturan = [
+            1 => 'R1',
+            2 => 'R2',
+            3 => 'R3',
+            4 => 'R4'
+        ];
+
+        $prefix = $prefixAturan[$sesi] ?? 'R1';
+
+        // Cek apakah ada fakta antara atau solusi yang dihasilkan dari aturan sesi ini
+        $hasilSesi = $this->konsultasi->inferensiLog()
+            ->whereHas('aturan', function ($q) use ($prefix) {
+                $q->where('kode', 'like', $prefix . '%');
+            })
+            ->where(function ($q) {
+                $q->where('fakta_terbentuk', 'like', 'FA%')
+                    ->orWhere('fakta_terbentuk', 'like', 'S%');
+            })
+            ->exists();
+
+        return $hasilSesi;
+    }
+
+    /**
+     * METODE BARU: Get fakta antara dan solusi untuk sesi spesifik
+     */
+    public function getSesiResults($sesi = null)
+    {
+        $sesi = $sesi ?? $this->sesiSekarang;
+        $prefixAturan = [
+            1 => 'R1',
+            2 => 'R2',
+            3 => 'R3',
+            4 => 'R4'
+        ];
+
+        $prefix = $prefixAturan[$sesi] ?? 'R1';
+        $nextPrefix = $prefixAturan[$sesi + 1] ?? null;
+
+        $faktaAntaraSesi = $this->konsultasi->inferensiLog()
+            ->whereHas('aturan', function ($q) use ($prefix) {
+                $q->where('kode', 'like', $prefix . '%');
+            })
+            ->where('fakta_terbentuk', 'like', 'FA%')
+            ->pluck('fakta_terbentuk')
+            ->toArray();
+
+        $solusiSesi = $this->konsultasi->inferensiLog()
+            ->whereHas('aturan', function ($q) use ($prefix) {
+                $q->where('kode', 'like', $prefix . '%');
+            })
+            ->where('fakta_terbentuk', 'like', 'S%')
+            ->pluck('fakta_terbentuk')
+            ->toArray();
+
+        $relevanUntukSesiBerikutnya = false;
+        if ($nextPrefix) {
+            $faktaDibutuhkanSesiBerikutnya = Aturan::where('kode', 'like', $nextPrefix . '%')
+                ->pluck('premis')
+                ->flatMap(function ($premise) {
+                    return array_map('trim', explode('^', $premise));
+                })
+                ->filter(function ($kode) {
+                    return strpos($kode, 'FA') === 0;
+                })
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $relevanUntukSesiBerikutnya = count(array_intersect($faktaAntaraSesi, $faktaDibutuhkanSesiBerikutnya)) > 0;
         }
 
         return [
-            'status' => 'continue',
-            'fakta' => $nextFakta,
-            'pertanyaan' => $nextFakta->pertanyaan,
-            'progress' => $this->calculateProgress()
+            'fakta_antara' => $faktaAntaraSesi,
+            'solusi' => $solusiSesi,
+            'has_results' => !empty($faktaAntaraSesi) || !empty($solusiSesi),
+            'relevant_for_next_session' => $relevanUntukSesiBerikutnya
         ];
     }
 
-    private function runInference()
+    /**
+     * METODE BARU: Cek apakah sesi masih bisa berlanjut
+     * Mengecek apakah ada kemungkinan menghasilkan fakta antara atau solusi
+     */
+    protected function canSesiProgress()
     {
-        $newFactsFound = true;
-        $maxIterations = 100; // Prevent infinite loop
-        $iteration = 0;
+        // Jika sudah ada hasil di sesi ini, cek apakah relevan untuk sesi berikutnya
+        if ($this->hasSesiResults($this->sesiSekarang)) {
+            $sesiResults = $this->getSesiResults($this->sesiSekarang);
+            return $sesiResults['relevant_for_next_session'] && $this->sesiSekarang < 4;
+        }
 
-        while ($newFactsFound && $iteration < $maxIterations) {
-            $newFactsFound = false;
-            $iteration++;
+        $aturanSesi = $this->getAturanBySesi();
 
-            $aturanAktif = Aturan::active()->get();
+        // Jika tidak ada aturan untuk sesi ini, tidak bisa lanjut
+        if ($aturanSesi->isEmpty()) {
+            return false;
+        }
 
-            foreach ($aturanAktif as $aturan) {
+        // Cek apakah ada aturan yang masih memiliki potensi untuk dipenuhi
+        foreach ($aturanSesi as $aturan) {
+            if (in_array($aturan->id, $this->aturanTerpakai)) {
+                continue;
+            }
+
+            if ($this->hasRulePotential($aturan)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    /**
+     * METODE BARU: Cek apakah aturan masih memiliki potensi untuk dipenuhi
+     */
+    protected function hasRulePotential($aturan)
+    {
+        $premisArray = explode('^', $aturan->premis);
+        $potentialCount = 0;
+        $totalPremis = count($premisArray);
+
+        foreach ($premisArray as $premis) {
+            $premis = trim($premis);
+
+            // Jika premis sudah tersedia
+            if (in_array($premis, $this->faktaTersedia)) {
+                $potentialCount++;
+                continue;
+            }
+
+            // Jika premis adalah fakta yang bisa ditanyakan
+            $fakta = Fakta::where('kode', $premis)->first();
+            if ($fakta && $fakta->is_askable) {
+                // Cek apakah sudah dijawab 'tidak'
+                $sudahDijawabTidak = $this->konsultasi->detailKonsultasi()
+                    ->whereHas('fakta', function ($q) use ($premis) {
+                        $q->where('kode', $premis);
+                    })
+                    ->where('jawaban', 'tidak')
+                    ->exists();
+
+                if (!$sudahDijawabTidak) {
+                    $potentialCount++;
+                }
+            }
+            // Jika premis adalah fakta antara yang mungkin terbentuk dari aturan lain
+            elseif (strpos($premis, 'FA') === 0) {
+                // Cek apakah ada aturan lain yang bisa menghasilkan fakta antara ini
+                if ($this->canFormIntermediateFact($premis)) {
+                    $potentialCount++;
+                }
+            }
+        }
+
+        // Aturan memiliki potensi jika semua premisnya bisa dipenuhi
+        return $potentialCount == $totalPremis;
+    }
+
+    /**
+     * METODE BARU: Cek apakah fakta antara bisa terbentuk
+     */
+    protected function canFormIntermediateFact($faktaAntara)
+    {
+        $aturanSesi = $this->getAturanBySesi();
+
+        foreach ($aturanSesi as $aturan) {
+            if ($aturan->konklusi == $faktaAntara && !in_array($aturan->id, $this->aturanTerpakai)) {
+                if ($this->hasRulePotential($aturan)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Proses jawaban user dan lakukan inferensi
+     */
+    public function processAnswer($kodeFakta, $jawaban)
+    {
+        DB::transaction(function () use ($kodeFakta, $jawaban) {
+            // Simpan jawaban user
+            $fakta = Fakta::where('kode', $kodeFakta)->first();
+
+            if ($fakta) {
+                DetailKonsultasi::updateOrCreate(
+                    [
+                        'konsultasi_id' => $this->konsultasi->id,
+                        'fakta_id' => $fakta->id
+                    ],
+                    [
+                        'jawaban' => $jawaban
+                    ]
+                );
+
+                // Jika jawaban ya, tambahkan ke fakta tersedia
+                if ($jawaban === 'ya') {
+                    $this->faktaTersedia[] = $kodeFakta;
+                }
+
+                // Proses inferensi
+                $this->prosesInferensi();
+            }
+        });
+    }
+
+    /**
+     * Proses inferensi berdasarkan aturan yang tersedia
+     */
+    protected function prosesInferensi()
+    {
+        $iterasi = 0;
+        $maxIterasi = 100;
+
+        do {
+            $faktaBaruDitemukan = false;
+            $aturanSesi = $this->getAturanBySesi();
+
+            foreach ($aturanSesi as $aturan) {
                 if (in_array($aturan->id, $this->aturanTerpakai)) {
                     continue;
                 }
 
-                if ($this->evaluateRule($aturan)) {
-                    $this->applyRule($aturan);
-                    $this->aturanTerpakai[] = $aturan->id;
-                    $newFactsFound = true;
+                if ($this->cekAturanTerpenuhi($aturan)) {
+                    $konklusi = $aturan->konklusi;
+
+                    if (!in_array($konklusi, $this->faktaTersedia)) {
+                        $this->faktaTersedia[] = $konklusi;
+
+                        if (strpos($konklusi, 'FA') === 0) {
+                            $this->faktaAntara[] = $konklusi;
+                        } elseif (strpos($konklusi, 'S') === 0) {
+                            $this->solusiDitemukan[] = $konklusi;
+                        }
+
+                        $this->logInferensi($aturan, $konklusi);
+                        $this->aturanTerpakai[] = $aturan->id;
+                        $faktaBaruDitemukan = true;
+
+                        Log::info("Aturan {$aturan->kode} terpakai, menghasilkan {$konklusi}");
+                    }
                 }
             }
-        }
+
+            $iterasi++;
+        } while ($faktaBaruDitemukan && $iterasi < $maxIterasi);
     }
 
-    private function evaluateRule(Aturan $aturan)
+    /**
+     * Cek apakah aturan terpenuhi
+     */
+    protected function cekAturanTerpenuhi($aturan)
     {
-        $premisArray = $aturan->getPremisArray();
+        $premisArray = explode('^', $aturan->premis);
 
-        if (empty($premisArray)) {
-            return false;
-        }
-
-        // Cek apakah konklusi sudah ada
-        if (in_array($aturan->konklusi, $this->faktaTersedia)) {
-            return false;
-        }
-
-        // Cek apakah semua premis terpenuhi
         foreach ($premisArray as $premis) {
-            if (!in_array(trim($premis), $this->faktaTersedia)) {
+            $premis = trim($premis);
+            if (!in_array($premis, $this->faktaTersedia)) {
                 return false;
             }
         }
@@ -110,155 +373,417 @@ class ForwardChainingService
         return true;
     }
 
-    private function applyRule(Aturan $aturan)
+    /**
+     * Get aturan berdasarkan sesi dengan pengurutan yang benar
+     */
+    protected function getAturanBySesi()
     {
-        $this->faktaTersedia[] = $aturan->konklusi;
+        $prefixAturan = [
+            1 => 'R1',
+            2 => 'R2',
+            3 => 'R3',
+            4 => 'R4'
+        ];
 
-        // Log inferensi
-        InferensiLog::create([
-            'konsultasi_id' => $this->konsultasi->id,
-            'aturan_id' => $aturan->id,
-            'fakta_terbentuk' => $aturan->konklusi,
-            'premis_terpenuhi' => $aturan->premis
-        ]);
+        $prefix = $prefixAturan[$this->sesiSekarang] ?? 'R1';
+
+        $aturan = Aturan::where('kode', 'like', $prefix . '%')
+            ->where('is_active', true)
+            ->orderBy('kode')
+            ->get();
+
+        return $aturan->sortBy(function ($item) {
+            preg_match('/\d+\.(\d+)$/', $item->kode, $matches);
+            return isset($matches[1]) ? (int) $matches[1] : 0;
+        })->values();
     }
 
-    private function findNextQuestion()
+    /**
+     * Get aturan yang belum terpenuhi dan memiliki pertanyaan yang bisa ditanya
+     */
+    protected function getAturanBelumTerpenuhi()
     {
-        $faktaTerjawab = $this->konsultasi->getFaktaTerjawab();
+        $aturanSesi = $this->getAturanBySesi();
+        $aturanBelumTerpenuhi = [];
 
-        // Cari aturan yang bisa dipenuhi dengan menanyakan 1 fakta lagi
-        $aturanAktif = Aturan::active()->get();
-        $priorityFacts = [];
-
-        foreach ($aturanAktif as $aturan) {
+        foreach ($aturanSesi as $aturan) {
+            // Skip aturan yang sudah terpakai
             if (in_array($aturan->id, $this->aturanTerpakai)) {
                 continue;
             }
 
-            if (in_array($aturan->konklusi, $this->faktaTersedia)) {
+            // Skip aturan yang sudah terpenuhi
+            if ($this->cekAturanTerpenuhi($aturan)) {
                 continue;
             }
 
-            $premisArray = $aturan->getPremisArray();
-            $missingFacts = [];
+            // Cek apakah aturan ini memiliki potensi untuk dipenuhi
+            if ($this->hasRulePotential($aturan)) {
+                $pertanyaanBelumDijawab = $this->getPertanyaanBelumDijawab($aturan);
+                if (!empty($pertanyaanBelumDijawab)) {
+                    $aturanBelumTerpenuhi[] = $aturan;
 
-            foreach ($premisArray as $premis) {
-                $premis = trim($premis);
-                if (
-                    !in_array($premis, $this->faktaTersedia) &&
-                    !in_array($premis, $faktaTerjawab)
-                ) {
-                    $missingFacts[] = $premis;
+                    // Hentikan pencarian setelah menemukan aturan pertama yang memiliki pertanyaan
+                    // yang bisa ditanyakan dan memiliki potensi untuk dipenuhi
+                    break;
                 }
             }
+        }
 
-            // Jika hanya kurang 1 fakta, prioritaskan
-            if (count($missingFacts) == 1) {
-                $priorityFacts[] = $missingFacts[0];
+        return $aturanBelumTerpenuhi;
+    }
+
+    /**
+     * Get pertanyaan yang belum dijawab dari aturan
+     */
+    protected function getPertanyaanBelumDijawab($aturan)
+    {
+        $premisArray = explode('^', $aturan->premis);
+        $pertanyaanBelumDijawab = [];
+
+        foreach ($premisArray as $premis) {
+            $premis = trim($premis);
+
+            // Skip jika premis sudah tersedia
+            if (in_array($premis, $this->faktaTersedia)) {
+                continue;
+            }
+
+            // Hanya ambil fakta yang bisa ditanyakan (is_askable = 1)
+            $fakta = Fakta::where('kode', $premis)->first();
+
+            if ($fakta && $fakta->is_askable) {
+                // Cek apakah sudah pernah dijawab 'tidak'
+                $sudahDijawabTidak = $this->konsultasi->detailKonsultasi()
+                    ->whereHas('fakta', function ($q) use ($premis) {
+                        $q->where('kode', $premis);
+                    })
+                    ->where('jawaban', 'tidak')
+                    ->exists();
+
+                if (!$sudahDijawabTidak) {
+                    $pertanyaanBelumDijawab[] = $premis;
+                }
             }
         }
 
-        // Ambil fakta dengan prioritas tertinggi
-        if (!empty($priorityFacts)) {
-            $nextFactCode = $priorityFacts[0];
-        } else {
-            // Ambil fakta pertama yang belum ditanya
-            $allFacts = Fakta::askable()
-                ->whereNotIn('kode', $faktaTerjawab)
-                ->orderBy('id')
-                ->first();
-
-            if (!$allFacts) {
-                return null;
-            }
-
-            $nextFactCode = $allFacts->kode;
-        }
-
-        return Fakta::where('kode', $nextFactCode)->first();
+        return $pertanyaanBelumDijawab;
     }
 
-    private function hasSolution()
+    /**
+     * Log inferensi
+     */
+    protected function logInferensi($aturan, $faktaTerbentuk)
     {
-        return count($this->getSolutions()) > 0;
-    }
-
-    private function getSolutions()
-    {
-        return array_filter($this->faktaTersedia, function ($fakta) {
-            return strpos($fakta, 'S') === 0;
-        });
-    }
-
-    private function buildFinalResult()
-    {
-        $solusiKodes = $this->getSolutions();
-        $solusiData = [];
-
-        if (!empty($solusiKodes)) {
-            $solusiData = \App\Models\Solusi::whereIn('kode', $solusiKodes)->get();
-        }
-
-        // Update status konsultasi
-        $this->konsultasi->update([
-            'status' => 'selesai',
-            'hasil_konsultasi' => $solusiKodes,
-            'completed_at' => now()
+        InferensiLog::create([
+            'konsultasi_id' => $this->konsultasi->id,
+            'aturan_id' => $aturan->id,
+            'fakta_terbentuk' => $faktaTerbentuk,
+            'premis_terpenuhi' => $aturan->premis,
+            'waktu' => now()
         ]);
+    }
 
+    /**
+     * Get hasil konsultasi
+     */
+    public function getHasilKonsultasi()
+    {
         return [
-            'status' => 'completed',
-            'solusi' => $solusiData,
-            'fakta_antara' => $this->getFaktaAntara(),
-            'total_rules_applied' => count($this->aturanTerpakai)
+            'sesi' => $this->sesiSekarang,
+            'fakta_tersedia' => $this->faktaTersedia,
+            'fakta_antara' => $this->faktaAntara,
+            'solusi' => $this->solusiDitemukan,
+            'progress' => $this->hitungProgress(),
+            'selesai' => $this->isKonsultasiSelesai(),
+            'sesi_dapat_lanjut' => $this->canSesiProgress() // TAMBAHAN BARU
         ];
     }
 
-    private function getFaktaAntara()
+    /**
+     * PERBAIKAN: Cek apakah konsultasi sudah selesai
+     */
+    public function isKonsultasiSelesai()
     {
-        return array_filter($this->faktaTersedia, function ($fakta) {
-            return strpos($fakta, 'FA') === 0;
-        });
-    }
-
-    private function calculateProgress()
-    {
-        $totalFacts = Fakta::askable()->count();
-        $answeredFacts = count($this->konsultasi->getFaktaTerjawab());
-
-        return $totalFacts > 0 ? round(($answeredFacts / $totalFacts) * 100, 2) : 0;
-    }
-
-    public function saveAnswer($faktaKode, $jawaban)
-    {
-        $fakta = Fakta::where('kode', $faktaKode)->first();
-
-        if (!$fakta) {
-            throw new \Exception("Fakta tidak ditemukan: {$faktaKode}");
+        // Jika sudah mencapai sesi 4 dan menemukan solusi
+        if ($this->sesiSekarang == 4 && !empty($this->solusiDitemukan)) {
+            $sesiResults = $this->getSesiResults(4);
+            if (!$sesiResults['relevant_for_next_session']) {
+                return true;
+            }
         }
 
-        // Simpan jawaban
-        DetailKonsultasi::updateOrCreate([
-            'konsultasi_id' => $this->konsultasi->id,
-            'fakta_id' => $fakta->id
-        ], [
-            'jawaban' => $jawaban
-        ]);
+        // Jika tidak bisa lanjut sesi dan belum menemukan solusi
+        if (!$this->canSesiProgress() && empty($this->solusiDitemukan)) {
+            return true;
+        }
 
-        // Update pertanyaan terakhir
-        $this->konsultasi->update([
-            'pertanyaan_terakhir' => $faktaKode
-        ]);
-
-        // Reload fakta tersedia
-        $this->loadFaktaTersedia();
+        return false;
     }
 
-    public function resetInference()
+    /**
+     * PERBAIKAN: Cek apakah sesi saat ini sudah selesai
+     */
+    public function isSesiSelesai()
     {
-        $this->faktaTersedia = [];
-        $this->aturanTerpakai = [];
-        $this->loadFaktaTersedia();
+        // Sesi selesai jika tidak ada aturan yang bisa dijalankan lagi
+        if (!$this->canSesiProgress()) {
+            return true;
+        }
+
+        // Tambahan: Sesi juga selesai jika sudah menghasilkan hasil 
+        // tapi tidak relevan untuk sesi berikutnya
+        $sesiResults = $this->getSesiResults($this->sesiSekarang);
+
+        // Jika sesi ini sudah ada hasil tapi tidak relevan untuk sesi berikutnya
+        if ($sesiResults['has_results'] && !$sesiResults['relevant_for_next_session']) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * METODE BARU: Cek apakah konsultasi berakhir tanpa solusi
+     */
+    public function isKonsultasiBerakhirTanpaSolusi()
+    {
+        return !$this->canSesiProgress() && empty($this->solusiDitemukan);
+    }
+
+    /**
+     * METODE BARU: Get pesan status konsultasi
+     */
+    public function getStatusMessage()
+    {
+        if ($this->isKonsultasiBerakhirTanpaSolusi()) {
+            return [
+                'status' => 'tidak_ada_solusi',
+                'message' => 'Konsultasi tidak dapat dilanjutkan karena tidak ada aturan yang dapat dipenuhi untuk menghasilkan solusi.',
+                'detail' => 'Berdasarkan jawaban yang diberikan, sistem tidak dapat menentukan rekomendasi yang sesuai.'
+            ];
+        }
+
+        // Kasus khusus ketika di sesi 4 dengan solusi
+        if ($this->sesiSekarang == 4 && !empty($this->solusiDitemukan)) {
+            $sesiResults = $this->getSesiResults(4);
+            if (!$sesiResults['relevant_for_next_session']) {
+                return [
+                    'status' => 'selesai_dengan_solusi',
+                    'message' => 'Konsultasi telah selesai dengan berhasil menemukan rekomendasi.',
+                    'detail' => 'Sistem telah menganalisis jawaban Anda dan memberikan rekomendasi yang sesuai.'
+                ];
+            }
+        }
+
+        if ($this->isSesiSelesai()) {
+            return [
+                'status' => 'sesi_selesai',
+                'message' => "Konsultasi berakhir karena sesi {$this->sesiSekarang} tidak menghasilkan hasil yang diperlukan untuk melanjutkan",
+                'detail' => 'Dapat melanjutkan ke sesi berikutnya atau menyelesaikan konsultasi.'
+            ];
+        }
+
+        return [
+            'status' => 'berjalan',
+            'message' => 'Konsultasi sedang berjalan.',
+            'detail' => 'Silakan jawab pertanyaan yang tersedia.'
+        ];
+    }
+
+    /**
+     * Hitung progress konsultasi
+     */
+    protected function hitungProgress()
+    {
+        $totalSesi = 4;
+        $progressPerSesi = 100 / $totalSesi;
+
+        // Progress dasar berdasarkan sesi yang sudah selesai
+        $baseProgress = ($this->sesiSekarang - 1) * $progressPerSesi;
+
+        // Hitung progress dalam sesi saat ini berdasarkan pertanyaan yang dijawab
+        $totalPertanyaanSesi = $this->getTotalPertanyaanSesi();
+        $pertanyaanTerjawabSesi = $this->getPertanyaanTerjawabSesi();
+
+        if ($totalPertanyaanSesi > 0) {
+            $progressDalamSesi = ($pertanyaanTerjawabSesi / $totalPertanyaanSesi) * $progressPerSesi;
+            $baseProgress += $progressDalamSesi;
+        }
+
+        return min(100, round($baseProgress, 2));
+    }
+
+    /**
+     * METODE BARU: Get total pertanyaan unik yang bisa ditanyakan dalam sesi
+     */
+    protected function getTotalPertanyaanSesi()
+    {
+        $aturanSesi = $this->getAturanBySesi();
+        $pertanyaanUnik = [];
+
+        foreach ($aturanSesi as $aturan) {
+            $premisArray = explode('^', $aturan->premis);
+
+            foreach ($premisArray as $premis) {
+                $premis = trim($premis);
+
+                // Hanya hitung fakta yang bisa ditanyakan (is_askable = 1)
+                $fakta = Fakta::where('kode', $premis)->first();
+
+                if ($fakta && $fakta->is_askable && !in_array($premis, $pertanyaanUnik)) {
+                    $pertanyaanUnik[] = $premis;
+                }
+            }
+        }
+
+        return count($pertanyaanUnik);
+    }
+
+    /**
+     * METODE BARU: Get jumlah pertanyaan yang sudah dijawab dalam sesi
+     */
+    protected function getPertanyaanTerjawabSesi()
+    {
+        // Mapping sesi ke kategori fakta
+        $kategoriBySesi = [
+            1 => ['skrining_awal'],
+            2 => ['risiko_fraktur', 'klasifikasi_frax'],
+            3 => ['asupan_nutrisi', 'evaluasi_nutrisi'],
+            4 => ['preferensi_makanan', 'rekomendasi_makanan']
+        ];
+
+        $kategoriSesi = $kategoriBySesi[$this->sesiSekarang] ?? [];
+
+        if (empty($kategoriSesi)) {
+            return 0;
+        }
+
+        // Hitung pertanyaan yang sudah dijawab dalam sesi ini
+        $pertanyaanTerjawab = $this->konsultasi->detailKonsultasi()
+            ->whereHas('fakta', function ($query) use ($kategoriSesi) {
+                $query->whereIn('kategori', $kategoriSesi);
+            })
+            ->count();
+
+        return $pertanyaanTerjawab;
+    }
+
+    public function getDetailProgress()
+    {
+        $totalSesi = 4;
+        $progressPerSesi = 100 / $totalSesi;
+        $baseProgress = ($this->sesiSekarang - 1) * $progressPerSesi;
+
+        $totalPertanyaanSesi = $this->getTotalPertanyaanSesi();
+        $pertanyaanTerjawabSesi = $this->getPertanyaanTerjawabSesi();
+
+        $aturanSesi = $this->getAturanBySesi();
+        $totalAturanSesi = $aturanSesi->count();
+        $aturanTerpakaiSesi = 0;
+
+        foreach ($aturanSesi as $aturan) {
+            if (in_array($aturan->id, $this->aturanTerpakai)) {
+                $aturanTerpakaiSesi++;
+            }
+        }
+
+        return [
+            'sesi' => $this->sesiSekarang,
+            'base_progress' => $baseProgress,
+            'total_pertanyaan_sesi' => $totalPertanyaanSesi,
+            'pertanyaan_terjawab_sesi' => $pertanyaanTerjawabSesi,
+            'total_aturan_sesi' => $totalAturanSesi,
+            'aturan_terpakai_sesi' => $aturanTerpakaiSesi,
+            'progress_akhir' => $this->hitungProgress()
+        ];
+    }
+
+    /**
+     * Get detail solusi untuk sesi tertentu
+     */
+    public function getDetailSolusi($sesiSpesifik = null)
+    {
+        $sesi = $sesiSpesifik ?? $this->sesiSekarang;
+        $solusiSesi = $this->solusiDitemukan;
+
+        if (empty($solusiSesi)) {
+            return [];
+        }
+
+        return Solusi::whereIn('kode', $solusiSesi)
+            ->get()
+            ->map(function ($solusi) {
+                return [
+                    'kode' => $solusi->kode,
+                    'nama' => $solusi->nama,
+                    'deskripsi' => $solusi->deskripsi,
+                    'peringatan' => $solusi->peringatan_konsultasi ?? null
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get trace/jejak inferensi untuk sesi tertentu
+     */
+    public function getTraceInferensi($sesiSpesifik = null)
+    {
+        $query = $this->konsultasi->inferensiLog()
+            ->with(['aturan', 'aturan.solusi'])
+            ->orderBy('waktu');
+
+        if ($sesiSpesifik !== null) {
+            $prefixAturan = [
+                1 => 'R1',
+                2 => 'R2',
+                3 => 'R3',
+                4 => 'R4'
+            ];
+
+            $prefix = $prefixAturan[$sesiSpesifik] ?? 'R1';
+
+            $query->whereHas('aturan', function ($q) use ($prefix) {
+                $q->where('kode', 'like', $prefix . '%');
+            });
+        }
+
+        return $query->get()
+            ->map(function ($log) {
+                return [
+                    'waktu' => $log->waktu,
+                    'aturan_kode' => $log->aturan->kode,
+                    'aturan_deskripsi' => $log->aturan->deskripsi,
+                    'premis' => $log->premis_terpenuhi,
+                    'fakta_terbentuk' => $log->fakta_terbentuk,
+                    'jenis' => strpos($log->fakta_terbentuk, 'FA') === 0 ? 'Fakta Antara' : 'Solusi'
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Reset konsultasi
+     */
+    public function resetKonsultasi()
+    {
+        DB::transaction(function () {
+            $this->konsultasi->detailKonsultasi()->delete();
+            $this->konsultasi->inferensiLog()->delete();
+
+            $this->konsultasi->update([
+                'status' => 'sedang_berjalan',
+                'sesi' => 1,
+                'pertanyaan_terakhir' => null,
+                'hasil_konsultasi' => null,
+                'completed_at' => null
+            ]);
+
+            $this->faktaTersedia = [];
+            $this->faktaAntara = [];
+            $this->solusiDitemukan = [];
+            $this->aturanTerpakai = [];
+            $this->sesiSekarang = 1;
+        });
     }
 }

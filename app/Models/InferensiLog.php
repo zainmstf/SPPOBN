@@ -10,6 +10,8 @@ class InferensiLog extends Model
     use HasFactory;
 
     protected $table = 'inferensi_log';
+    public $timestamps = false;
+
     protected $fillable = [
         'konsultasi_id',
         'aturan_id',
