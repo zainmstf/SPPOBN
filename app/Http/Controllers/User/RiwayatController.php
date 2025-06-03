@@ -30,6 +30,7 @@ class RiwayatController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
+
         return view('user.riwayat.index', compact('riwayatKonsultasi'));
     }
 

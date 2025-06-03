@@ -132,7 +132,6 @@
                                                 <th>ID</th>
                                                 <th>Tanggal</th>
                                                 <th>Selesai</th>
-                                                <th>Rekomendasi</th>
                                                 <th>Aksi</th>
                                             </tr>
                                         </thead>
@@ -142,9 +141,6 @@
                                                     <td>{{ $konsultasi->id }}</td>
                                                     <td>{{ $konsultasi->created_at->format('d M Y, H:i') }}</td>
                                                     <td>{{ \Carbon\Carbon::parse($konsultasi->completed_at)->format('d M Y, H:i') }}
-                                                    </td>
-                                                    <td>
-                                                        {{ Str::limit($konsultasi->hasil_konsultasi ? ucwords(str_replace('_', ' ', $konsultasi->hasil_konsultasi)) : '-', 100) }}
                                                     </td>
                                                     <td>
                                                         <a href="{{ route('riwayat.show', $konsultasi->id) }}"
@@ -164,7 +160,7 @@
                             </div>
                         </div>
                         <div class="text-center mt-4">
-                            <a href="{{ route('konsultasi.start') }}" class="btn btn-lg btn-success">
+                            <a href="{{ route('konsultasi.index') }}" class="btn btn-lg btn-success">
                                 <i class="fas fa-plus-circle"></i> Mulai Konsultasi Baru
                             </a>
                         </div>

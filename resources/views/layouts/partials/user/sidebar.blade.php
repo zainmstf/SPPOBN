@@ -23,7 +23,7 @@
 
                 <!-- Konsultasi Menu -->
                 <li class="sidebar-title">Menu Konsultasi</li>
-                {{-- <li
+                <li
                     class="sidebar-item has-sub {{ request()->routeIs(['konsultasi.*', 'riwayat.*']) ? 'active' : '' }}">
                     <a href="#" class="sidebar-link">
                         <i class="bi-clipboard-check-fill"></i>
@@ -31,8 +31,8 @@
                     </a>
                     <ul class="submenu {{ request()->routeIs(['konsultasi.*', 'riwayat.*']) ? 'active' : '' }}">
                         <li
-                            class="submenu-item {{ request()->routeIs('konsultasi.store', 'konsultasi.question') ? 'active' : '' }}">
-                            <a href="{{ route('konsultasi.store') }}">Mulai Konsultasi Baru</a>
+                            class="submenu-item {{ request()->routeIs('konsultasi.index', 'konsultasi.question') ? 'active' : '' }}">
+                            <a href="{{ route('konsultasi.index') }}">Mulai Konsultasi Baru</a>
                         </li>
                         <li
                             class="submenu-item {{ request()->routeIs('konsultasi.result', 'konsultasi.recent') ? 'active' : '' }}">
@@ -43,7 +43,7 @@
                             <a href="{{ route('riwayat.index') }}">Riwayat Konsultasi</a>
                         </li>
                     </ul>
-                </li> --}}
+                </li>
 
                 <!-- Edukasi Menu -->
                 <li class="sidebar-title">Informasi</li>

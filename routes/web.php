@@ -68,13 +68,14 @@ Route::middleware(['auth', 'user'])->prefix('user')->group(function () {
         Route::get('/{id}/result', [KonsultasiController::class, 'result'])->name('result');
         Route::get('/{id}/show', [KonsultasiController::class, 'show'])->name('show');
         Route::post('/{id}/restart', [KonsultasiController::class, 'restart'])->name('restart');
-        Route::get('/{id}/export-pdf', [KonsultasiController::class, 'exportPdf'])->name('export.pdf');
         Route::get('/{id}/progress', [KonsultasiController::class, 'getProgress'])->name('progress');
         Route::get('/{konsultasi}/session-summary', [KonsultasiController::class, 'showSessionSummary'])->name('session-summary');
         Route::post('/{konsultasi}/continue-session', [KonsultasiController::class, 'continueSession'])->name('continue-session');
         Route::post('/pending', [KonsultasiController::class, 'pending'])->name('pending');
         Route::get('/{konsultasi}/lanjutkan', action: [KonsultasiController::class, 'continueKonsultasi'])->name('lanjutkan');
         Route::post('/complete', [KonsultasiController::class, 'complete'])->name('complete');
+        Route::get('/{konsultasi}/print', [KonsultasiController::class, 'print'])->name('print');
+        Route::get('/recent', [KonsultasiController::class, 'recent'])->name('recent');
     });
 
     // Riwayat Konsultasi

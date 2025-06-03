@@ -715,6 +715,7 @@ class ForwardChainingService
             ->get()
             ->map(function ($solusi) {
                 return [
+                    'id' => $solusi->id,
                     'kode' => $solusi->kode,
                     'nama' => $solusi->nama,
                     'deskripsi' => $solusi->deskripsi,

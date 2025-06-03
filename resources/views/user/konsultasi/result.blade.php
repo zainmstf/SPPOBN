@@ -19,7 +19,6 @@
                     {{-- Header Card with Progress --}}
                     <div class="card mb-4">
                         <div class="card-body">
-                            <x-alert />
                             <div class="row align-items-center">
                                 <div class="col-md-8">
                                     <div class="d-flex align-items-center">
@@ -90,7 +89,7 @@
                                     </div>
                                     <div class="card-body">
                                         <div
-                                            class="alert alert-{{ $statusMessage['status'] === 'tidak_ada_solusi' ? 'warning' : 'success' }} mb-0">
+                                            class="alert nodismissable alert-{{ $statusMessage['status'] === 'tidak_ada_solusi' ? 'warning' : 'success' }} mb-0">
                                             <p class="mb-0">{{ $statusMessage['message'] }}</p>
                                         </div>
                                     </div>
@@ -106,7 +105,7 @@
                                             Rekomendasi Berdasarkan Konsultasi
                                         </h6>
                                     </div>
-                                    <div class="card-body" style="max-height: 800px; overflow-y: auto;">
+                                    <div class="card-body" style="max-height: 850px; overflow-y: auto;">
                                         @foreach ($detailSolusi as $index => $solusi)
                                             <div class="solution-item mb-4 {{ !$loop->last ? 'border-bottom pb-4' : '' }}">
                                                 <div class="d-flex align-items-start">
@@ -118,7 +117,8 @@
                                                         <h6 class="solution-title mb-2">{{ $solusi['nama'] }}</h6>
                                                         <p class="solution-description mb-2">{{ $solusi['deskripsi'] }}</p>
                                                         @if (!empty($solusi['peringatan']))
-                                                            <div class="alert alert-secondary alert-sm mt-2 mb-0">
+                                                            <div
+                                                                class="alert nodismissable alert-secondary alert-sm mt-2 mb-0">
                                                                 <div class="d-flex align-items-start">
                                                                     <div>
                                                                         <strong>Perhatian:</strong>
@@ -143,7 +143,7 @@
                                         </h6>
                                     </div>
                                     <div class="card-body">
-                                        <div class="alert alert-success mb-0">
+                                        <div class="alert nodismissable alert-success mb-0">
                                             <div class="d-flex align-items-start">
                                                 <i class="fas fa-check-circle text-success me-3 mt-1"></i>
                                                 <div>
@@ -163,7 +163,84 @@
                                     </div>
                                 </div>
                             @endif
+                            {{-- Nutritional Recommendations Card (No Accordion) --}}
+                            @if (!empty($rekomendasiNutrisi) && count($rekomendasiNutrisi) > 0)
+                                <div class="card mb-4">
+                                    <div class="card-header py-3">
+                                        <h6 class="m-0 font-weight-bold text-success">
+                                            <i class="fas fa-utensils me-2"></i>
+                                            Rekomendasi Nutrisi
+                                        </h6>
+                                    </div>
+                                    <div class="card-body" style="max-height: 800px; overflow-y: auto;">
+                                        @foreach ($rekomendasiNutrisi as $nutrisi => $recommendations)
+                                            <div class="mb-4">
+                                                <h6 class="font-weight-bold text-dark mb-2">{{ ucfirst($nutrisi) }}</h6>
+                                                @foreach ($recommendations as $recommendation)
+                                                    <div class="mb-3 border p-3 rounded">
+                                                        @if ($recommendation->kontraindikasi)
+                                                            <div class="alert nodismissable alert-warning p-2 mb-2">
+                                                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                                                <strong>Kontraindikasi:</strong>
+                                                                {{ $recommendation->kontraindikasi }}
+                                                            </div>
+                                                        @endif
 
+                                                        @if ($recommendation->alternatif)
+                                                            <div class="alert nodismissable alert-primary p-2 mb-2">
+                                                                <i class="fas fa-info-circle mr-2"></i>
+                                                                <strong>Alternatif:</strong>
+                                                                {{ $recommendation->alternatif }}
+                                                            </div>
+                                                        @endif
+
+                                                        <h6 class="text-success mb-2">Sumber Untuk Solusi
+                                                            #{{ $recommendation->solusi->id }} -
+                                                            {{ $recommendation->solusi->nama }}:</h6>
+                                                        <div class="row">
+                                                            @foreach ($recommendation->sumberNutrisi as $sumber)
+                                                                <div class="col-md-6 mb-3">
+                                                                    <div class="card h-100 border">
+                                                                        <div class="card-body">
+                                                                            <div class="d-flex">
+                                                                                @if ($sumber->image)
+                                                                                    <img src="{{ asset('storage/' . $sumber->image) }}"
+                                                                                        alt="{{ $sumber->nama_sumber }}"
+                                                                                        class="rounded mr-3" width="60"
+                                                                                        height="60">
+                                                                                @endif
+                                                                                <div>
+                                                                                    <h6 class="mb-1">
+                                                                                        {{ $sumber->nama_sumber }}</h6>
+                                                                                    <small class="text-muted d-block">
+                                                                                        <strong>Jenis:</strong>
+                                                                                        {{ ucfirst($sumber->jenis_sumber) }}
+                                                                                    </small>
+                                                                                    <small class="text-muted d-block">
+                                                                                        <strong>Takaran:</strong>
+                                                                                        {{ $sumber->takaran }}
+                                                                                    </small>
+                                                                                    @if ($sumber->catatan)
+                                                                                        <small
+                                                                                            class="text-muted d-block mt-1">
+                                                                                            <strong>Catatan:</strong>
+                                                                                            {{ $sumber->catatan }}
+                                                                                        </small>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                             {{-- User Answers Card --}}
                             @if ($jawabanUser->count() > 0)
                                 <div class="card mb-4">
@@ -221,29 +298,34 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="btn-group-vertical w-100">
-                                        <a href="{{ route('konsultasi.export.pdf', $konsultasi->id) }}"
+                                        <a href="{{ route('edukasi.daftarMakanan') }}"
                                             class="btn btn-success btn-block mb-2">
-                                            <i class="fas fa-download me-2"></i>
-                                            Unduh PDF
+                                            <i class="fas fa-fish me-2"></i>
+                                            Lihat Sumber Makanan
                                         </a>
-                                        <button type="button" class="btn btn-primary btn-block mb-2"
-                                            onclick="window.print()">
+                                        <a href="{{ route('konsultasi.print', $konsultasi->id) }}"
+                                            class="btn btn-primary" target="_blank">
                                             <i class="fas fa-print me-2"></i>
                                             Print Hasil
+                                        </a>
                                         </button>
                                         <a href="{{ route('konsultasi.create') }}"
                                             class="btn btn-outline-primary btn-block mb-2">
                                             <i class="fas fa-plus me-2"></i>
                                             Konsultasi Baru
                                         </a>
-                                        <a href="{{ route('konsultasi.index') }}" class="btn btn-secondary btn-block">
+                                        <a href="{{ route('riwayat.index') }}" class="btn btn-secondary btn-block">
                                             <i class="fas fa-list me-2"></i>
                                             Riwayat Konsultasi
                                         </a>
+                                        <button type="button" class="btn btn-warning" data-bs-toggle="modal"
+                                            data-bs-target="#umpanBalikModal" data-konsultasi-id="{{ $konsultasi->id }}">
+                                            <i class="fas fa-star me-2"></i> Beri Umpan Balik
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-
+                            <x-modal-umpan-balik :konsultasi="$konsultasi" />
                             {{-- Summary Statistics Card --}}
                             <div class="card mb-4">
                                 <div class="card-header py-3">
@@ -351,7 +433,7 @@
                             {{-- Disclaimer Card --}}
                             <div class="card">
                                 <div class="card-body">
-                                    <div class="alert alert-danger alert-sm mb-0">
+                                    <div class="alert nodismissable alert-danger alert-sm mb-0">
                                         <div class="d-flex align-items-start">
                                             <i class="fas fa-info-circle text-white me-2 mt-1"></i>
                                             <div>
@@ -376,8 +458,8 @@
                                             Proses Inferensi Forward Chaining
                                         </h6>
                                     </div>
-                                    <div class="card-body">
-                                        <div class="timeline" style="max-height: 600px; overflow-y: auto;">
+                                    <div class="card-body" style="max-height: 1500px; overflow-y: auto;">
+                                        <div class="timeline">
                                             @foreach ($traceInferensi as $index => $trace)
                                                 <div class="timeline-item mb-3">
                                                     <div
@@ -419,6 +501,8 @@
 
 @push('css-top')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
+
     <style>
         .result-status-icon {
             display: flex;
@@ -534,7 +618,7 @@
                 box-shadow: none !important;
             }
 
-            .alert {
+            .alert nodismissable {
                 border: 1px solid #ddd !important;
             }
         }
@@ -544,6 +628,7 @@
 @push('scripts-bottom')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="{{ asset('storage/js/pages/hasil-konsultasi.js') }}" type="module"></script>
     <script>
         $(document).ready(function() {
             $('#table-jawaban').DataTable({

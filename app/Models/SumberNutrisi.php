@@ -11,7 +11,7 @@ class SumberNutrisi extends Model
 
     protected $table = 'sumber_nutrisi';
     protected $fillable = [
-        'nutrisi',
+        'rekomendasi_nutrisi_id',
         'jenis_sumber',
         'nama_sumber',
         'image',
@@ -19,6 +19,10 @@ class SumberNutrisi extends Model
         'catatan'
     ];
 
+    public function rekomendasiNutrisi()
+    {
+        return $this->belongsTo(RekomendasiNutrisi::class, 'rekomendasi_nutrisi_id');
+    }
     public function scopeByNutrisi($query, $nutrisi)
     {
         return $query->where('nutrisi', $nutrisi);
