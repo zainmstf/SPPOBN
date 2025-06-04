@@ -29,10 +29,10 @@
                     <div class="card h-100">
                         @if ($item->image)
                             <img src="{{ asset('storage/' . $item->image) }}" class="card-img-top"
-                                 alt="{{ $item->nama_sumber }}">
+                                alt="{{ $item->nama_sumber }}">
                         @else
                             <div class="placeholder-image"
-                                 style="height: 200px; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center;">
+                                style="height: 200px; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center;">
                                 <span class="text-muted">Tidak ada gambar</span>
                             </div>
                         @endif
@@ -73,9 +73,9 @@
         </div>
 
         @if ($sumberNutrisi->hasPages())
-        <div class="d-flex justify-content-center mt-4">
-            {{$sumberNutrisi->links('components.paginate') }}
-        </div>
-    @endif
+            <div class="d-flex justify-content-center mt-4">
+                {{ $sumberNutrisi->links('components.paginate') }}
+            </div>
+        @endif
     </div>
 @endsection

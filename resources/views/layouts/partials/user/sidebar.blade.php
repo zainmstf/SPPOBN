@@ -31,7 +31,7 @@
                     </a>
                     <ul class="submenu {{ request()->routeIs(['konsultasi.*', 'riwayat.*']) ? 'active' : '' }}">
                         <li
-                            class="submenu-item {{ request()->routeIs('konsultasi.index', 'konsultasi.question') ? 'active' : '' }}">
+                            class="submenu-item {{ request()->routeIs('konsultasi.index', 'konsultasi.question', 'konsultasi.session-summary') ? 'active' : '' }}">
                             <a href="{{ route('konsultasi.index') }}">Mulai Konsultasi Baru</a>
                         </li>
                         <li

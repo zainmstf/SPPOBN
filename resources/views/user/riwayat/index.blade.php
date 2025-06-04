@@ -65,7 +65,7 @@
                                                 <tr>
                                                     <td>{{ $konsultasi->id }}</td>
                                                     <td>{{ $konsultasi->created_at->format('d M Y, H:i') }}</td>
-                                                    <td>{{ $konsultasi->sesi ? ucwords(str_replace('_', ' ', $konsultasi->sesi)) : 'Tidak ada sesi aktif' }}
+                                                    <td>{{ $konsultasi->nama_sesi ? ucwords(str_replace('_', ' ', $konsultasi->nama_sesi)) : 'Tidak ada sesi aktif' }}
                                                     </td>
                                                     <td>{{ $konsultasi->currentPertanyaan ? Str::limit($konsultasi->currentPertanyaan->pertanyaan, 50) : '-' }}
                                                     <td>
@@ -103,7 +103,7 @@
                                                 <tr>
                                                     <td>{{ $konsultasi->id }}</td>
                                                     <td>{{ $konsultasi->created_at->format('d M Y, H:i') }}</td>
-                                                    <td>{{ $konsultasi->sesi ? ucwords(str_replace('_', ' ', $konsultasi->sesi)) : 'Tidak ada sesi aktif' }}
+                                                    <td>{{ $konsultasi->nama_sesi ? ucwords(str_replace('_', ' ', $konsultasi->nama_sesi)) : 'Tidak ada sesi aktif' }}
                                                     </td>
                                                     <td>{{ $konsultasi->currentPertanyaan ? Str::limit($konsultasi->currentPertanyaan->pertanyaan, 50) : '-' }}
                                                     </td>
@@ -129,10 +129,11 @@
                                     <table id="selesaiTable" class="table table-striped table-bordered">
                                         <thead>
                                             <tr>
-                                                <th>ID</th>
-                                                <th>Tanggal</th>
-                                                <th>Selesai</th>
-                                                <th>Aksi</th>
+                                                <th style="width: 5%;">ID</th>
+                                                <th style="width: 15%;">Tanggal Mulai</th>
+                                                <th style="width: 15%;">Tanggal Selesai</th>
+                                                <th style="width: 50%;">Hasil Konsultasi</th>
+                                                <th style="width: 15%;">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -141,6 +142,14 @@
                                                     <td>{{ $konsultasi->id }}</td>
                                                     <td>{{ $konsultasi->created_at->format('d M Y, H:i') }}</td>
                                                     <td>{{ \Carbon\Carbon::parse($konsultasi->completed_at)->format('d M Y, H:i') }}
+                                                    </td>
+                                                    <td>
+                                                        @if (!empty($konsultasi->nama_solusi))
+                                                            {{-- Join the solution names with a comma and space for display --}}
+                                                            {{ implode(', ', $konsultasi->nama_solusi) }}
+                                                        @else
+                                                            -
+                                                        @endif
                                                     </td>
                                                     <td>
                                                         <a href="{{ route('riwayat.show', $konsultasi->id) }}"
@@ -179,30 +188,24 @@
             $('#belumSelesaiTable').DataTable({
                 responsive: true,
                 autoWidth: false,
-                columnDefs: [{
-                        width: "5%",
-                        targets: 0
-                    }, // ID
-                    {
-                        width: "15%",
-                        targets: 1
-                    }, // Tanggal
-                    {
-                        width: "15%",
-                        targets: 2
-                    }, // Sesi Aktif
-                    {
-                        width: "45%",
-                        targets: 3
-                    }, // Fakta Terakhir
-                    {
-                        width: "15%",
-                        targets: 4
-                    }, // Aksi
+                order: [
+                    [0, 'desc']
                 ]
             });
-            $('#sedangBerlangsungTable').DataTable();
-            $('#selesaiTable').DataTable();
+            $('#sedangBerlangsungTable').DataTable({
+                responsive: true,
+                autoWidth: false,
+                order: [
+                    [0, 'desc']
+                ]
+            });
+            $('#selesaiTable').DataTable({
+                responsive: true,
+                autoWidth: false,
+                order: [
+                    [0, 'desc']
+                ]
+            });
 
             $('button[data-bs-toggle="tab"]').on("shown.bs.tab", function(e) {
                 $.fn.dataTable

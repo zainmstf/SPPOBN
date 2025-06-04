@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\DetailKonsultasi;
 use App\Models\Konsultasi;
 use App\Models\Fakta;
 use App\Models\RekomendasiNutrisi;
@@ -42,11 +43,17 @@ class KonsultasiController extends Controller
     public function store(Request $request)
     {
         $konsultasi = DB::transaction(function () use ($request) {
-            return Konsultasi::create([
+            $konsultasi = Konsultasi::create([
                 'user_id' => Auth::id(),
-                'sesi' => 1,
+                'sesi' => 0,
                 'status' => 'sedang_berjalan',
             ]);
+
+            // Immediately apply the starting rule (R0.1)
+            $forwardChaining = new ForwardChainingService($konsultasi);
+            $forwardChaining->applyStartingRule();
+
+            return $konsultasi;
         });
 
         return redirect()->route('konsultasi.question', $konsultasi->id)
@@ -67,6 +74,11 @@ class KonsultasiController extends Controller
 
         $forwardChaining = new ForwardChainingService($konsultasi);
 
+        // Check if S001 is already in solutions
+        if (in_array('S001', $forwardChaining->getHasilKonsultasi()['solusi']) && $konsultasi->sesi == 0) {
+            return redirect()->route('konsultasi.continue-session', $konsultasi->id);
+        }
+
         // PERBAIKAN: Cek konsultasi selesai dengan solusi terlebih dahulu
         if ($forwardChaining->isKonsultasiSelesai()) {
             $hasilKonsultasi = $forwardChaining->getHasilKonsultasi();
@@ -86,6 +98,7 @@ class KonsultasiController extends Controller
 
         // Cek status message untuk konsultasi yang berakhir tanpa solusi
         $statusMessage = $forwardChaining->getStatusMessage();
+
         if ($statusMessage['status'] === 'tidak_ada_solusi') {
             $konsultasi->update([
                 'status' => 'selesai',
@@ -268,25 +281,6 @@ class KonsultasiController extends Controller
     }
 
     /**
-     * Show consultation details
-     */
-    public function show($id)
-    {
-        $konsultasi = Konsultasi::with(['user', 'detailKonsultasi.fakta'])
-            ->where('id', $id)->first();
-
-        // Cek authorization
-        if ($konsultasi->user_id !== Auth::id()) {
-            abort(403);
-        }
-
-        $forwardChaining = new ForwardChainingService($konsultasi);
-        $traceInferensi = $forwardChaining->getTraceInferensi();
-
-        return view('user.konsultasi.show', compact('konsultasi', 'traceInferensi'));
-    }
-
-    /**
      * Restart consultation
      */
     public function restart($id)
@@ -419,12 +413,15 @@ class KonsultasiController extends Controller
             $bisaLanjutSesi = $hasilSesiSekarang['relevant_for_next_session'];
         }
 
+        if ($sesiSekarang == 0) {
+            $bisaLanjutSesi = true;
+        }
+
         \Log::info('Session Summary Debug:', [
             'sesi' => $sesiSekarang,
             'hasil_sesi_sekarang' => $hasilSesiSekarang,
             'bisa_lanjut_sesi' => $bisaLanjutSesi
         ]);
-
 
         // PERBAIKAN: Jika tidak bisa lanjut sesi dan belum di sesi 4
         if (!$bisaLanjutSesi && $sesiSekarang <= 4) {
@@ -483,7 +480,15 @@ class KonsultasiController extends Controller
 
         $forwardChaining = new ForwardChainingService($konsultasi);
         $hasilKonsultasi = $forwardChaining->getHasilKonsultasi();
+        if ($konsultasi->sesi == 0 && in_array('S001', $hasilKonsultasi['solusi'])) {
+            $konsultasi->update([
+                'sesi' => 1,
+                'status' => 'sedang_berjalan'
+            ]);
 
+            return redirect()->route('konsultasi.question', $id)
+                ->with('success', "Melanjutkan ke Skrining Awal");
+        }
         // PERBAIKAN: Cek apakah benar-benar bisa lanjut ke sesi berikutnya
         if ($hasilKonsultasi['sesi'] >= 4) {
             return redirect()->route('konsultasi.result', $id)
@@ -557,7 +562,7 @@ class KonsultasiController extends Controller
         }
 
         // Cek status konsultasi
-        if ($konsultasi->status === 'completed') {
+        if ($konsultasi->status === 'selesai') {
             return redirect()->route('konsultasi.result', $id)
                 ->with('info', 'Konsultasi ini sudah selesai');
         }
@@ -593,34 +598,27 @@ class KonsultasiController extends Controller
                 ->with('success', 'Konsultasi telah selesai');
         }
 
-        // Update status menjadi active kembali
-        $konsultasi->update([
-            'status' => 'sedang_berjalan',
-        ]);
+        // Ambil detail konsultasi terakhir untuk konsultasi ini
+        $detailKonsultasiTerakhir = DetailKonsultasi::where('konsultasi_id', $konsultasi->id)
+            ->orderBy('created_at', 'desc')
+            ->first();
 
-        // Cek apakah ada pertanyaan berikutnya
-        $pertanyaan = $forwardChaining->getNextQuestion();
+        // Ambil fakta untuk pertanyaan terakhir yang tercatat di konsultasi
+        $faktaTerakhirDiKonsultasi = Fakta::where('kode', $konsultasi->pertanyaan_terakhir)
+            ->where('kategori', $konsultasi->sesi) // Asumsi kategori fakta sesuai dengan sesi
+            ->first();
 
-        if (!$pertanyaan) {
-            // PERBAIKAN: Cek apakah sesi selesai atau konsultasi berakhir
-            if ($forwardChaining->isSesiSelesai()) {
-                return redirect()->route('konsultasi.session-summary', $id);
-            } else {
-                // Konsultasi berakhir tanpa solusi
-                $konsultasi->update([
-                    'status' => 'selesai',
-                    'hasil_konsultasi' => $forwardChaining->getHasilKonsultasi(),
-                    'completed_at' => now()
-                ]);
-
-                return redirect()->route('konsultasi.result', $id)
-                    ->with('warning', 'Konsultasi tidak dapat dilanjutkan karena tidak ada aturan yang dapat dipenuhi');
-            }
+        // Periksa apakah ada detail konsultasi dan apakah fakta terakhir sesuai dengan detail terakhir
+        if ($faktaTerakhirDiKonsultasi && $detailKonsultasiTerakhir && $detailKonsultasiTerakhir->fakta_id == $faktaTerakhirDiKonsultasi->id) {
+            // Pertanyaan terakhir di sesi ini tampaknya sudah dijawab, lanjut ke sesi berikutnya
+            return $this->showSessionSummary($konsultasi);
+        } else {
+            // Jika pertanyaan terakhir belum dijawab (tidak ada detail konsultasi terakhir
+            // atau fakta_id tidak sesuai), tetap lanjutkan ke pertanyaan saat ini
+            $konsultasi->status = 'sedang_berjalan';
+            $konsultasi->save();
+            return redirect()->route('konsultasi.question', $konsultasi->id);
         }
-
-        // Ada pertanyaan, lanjutkan konsultasi
-        return redirect()->route('konsultasi.question', $id)
-            ->with('success', 'Konsultasi dilanjutkan');
     }
 
     /**

@@ -57,38 +57,53 @@
 
     <div class="section">
         <h2>Data Konsultasi</h2>
-        <table>
+        <table style="width:100%; border-collapse: collapse;">
             <thead>
                 <tr>
-                    <th style="width:5%;">No</th>
-                    <th style="width:10%;">Tanggal Konsultasi</th>
-                    <th style="width:10%;">Rentang Waktu</th>
-                    <th style="width:10%;">Durasi</th>
-                    <th style="width:5%;">Jumlah Fakta</th>
-                    <th style="width:25%;">Hasil Konsultasi</th>
+                    <th style="width:5%; border: 1px solid #ddd; padding: 8px; text-align: left;">No</th>
+                    <th style="width:12%; border: 1px solid #ddd; padding: 8px; text-align: left;">Tanggal Konsultasi
+                    </th>
+                    <th style="width:12%; border: 1px solid #ddd; padding: 8px; text-align: left;">Rentang Waktu</th>
+                    <th style="width:8%; border: 1px solid #ddd; padding: 8px; text-align: left;">Durasi</th>
+                    <th style="width:8%; border: 1px solid #ddd; padding: 8px; text-align: left;">Jumlah Fakta</th>
+                    <th style="width:55%; border: 1px solid #ddd; padding: 8px; text-align: left;">Hasil Konsultasi</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($data as $row)
                     <tr>
-                        <td>{{ $row[0] }}</td>
-                        <td>{{ $row[1] }}</td>
-                        <td>{{ $row[2] }}</td>
-                        <td>{{ $row[3] }}</td>
-                        <td>{{ $row[4] }}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{{ $row[0] }}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{{ $row[1] }}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{{ $row[2] }}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{{ $row[3] }}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{{ $row[4] }}</td>
                         <?php
                         $originalString = $row[5];
-                        $lines = explode("\n", $originalString);
-                        $results = [];
-                        foreach ($lines as $line) {
-                            if (strpos($line, '- ') !== false) {
-                                $results[] = trim(substr($line, strpos($line, '- ') + 2));
+                        $processedHtml = '';
+                        
+                        // Regex untuk menemukan pola **Judul**: Deskripsi
+                        // Ini akan mencari teks tebal (**) diikuti titik dua, lalu teks sisanya.
+                        // Flag 'm' untuk multiple lines, 'U' untuk non-greedy matching
+                        preg_match_all('/\*\*(.*?)\*\*:\s*(.*?)(?=\*\*|$)/s', $originalString, $matches, PREG_SET_ORDER);
+                        
+                        if (!empty($matches)) {
+                            $processedHtml .= '<ul>';
+                            foreach ($matches as $match) {
+                                $title = trim($match[1]); // Judul tanpa **
+                                $description = trim($match[2]); // Deskripsi
+                                // Hapus newline atau spasi berlebih di akhir deskripsi
+                                $description = rtrim($description, "\n ");
+                        
+                                // Untuk tampilan di tabel, gabungkan judul dan deskripsi
+                                $processedHtml .= '<li><strong>' . $title . '</strong>: ' . $description . '</li>';
                             }
+                            $processedHtml .= '</ul>';
+                        } else {
+                            // Jika tidak ada pola yang cocok, tampilkan string aslinya
+                            $processedHtml = nl2br($originalString);
                         }
-                        $processedString = implode(', ', $results);
                         ?>
-
-                        <td>{{ $processedString }}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{!! $processedHtml !!}</td>
                     </tr>
                 @endforeach
             </tbody>

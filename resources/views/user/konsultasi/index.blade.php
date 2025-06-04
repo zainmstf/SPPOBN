@@ -82,7 +82,7 @@
                                             • Gaya hidup & aktivitas fisik
                                         </p>
                                         <div class="badge bg-light text-dark">
-                                            <i class="bi bi-clock me-1"></i>5-7 menit
+                                            <i class="bi bi-clock me-1"></i>1-2 menit
                                         </div>
                                     </div>
                                 </div>
@@ -105,7 +105,7 @@
                                             • Rekomendasi bone densitometry
                                         </p>
                                         <div class="badge bg-light text-dark">
-                                            <i class="bi bi-clock me-1"></i>8-10 menit
+                                            <i class="bi bi-clock me-1"></i>2-3 menit
                                         </div>
                                     </div>
                                 </div>
@@ -128,7 +128,7 @@
                                             • Magnesium & vitamin K
                                         </p>
                                         <div class="badge bg-light text-dark">
-                                            <i class="bi bi-clock me-1"></i>10-12 menit
+                                            <i class="bi bi-clock me-1"></i>2-3 menit
                                         </div>
                                     </div>
                                 </div>
@@ -151,7 +151,7 @@
                                             • Pola makan (vegetarian)
                                         </p>
                                         <div class="badge bg-light text-dark">
-                                            <i class="bi bi-clock me-1"></i>5-8 menit
+                                            <i class="bi bi-clock me-1"></i>2-3 menit
                                         </div>
                                     </div>
                                 </div>
@@ -374,7 +374,7 @@
                                 <small class="text-muted">Tahap Konsultasi</small>
                             </div>
                             <div class="col-md-3 col-6 mb-3">
-                                <div class="h4 text-primary mb-1">30-35</div>
+                                <div class="h4 text-primary mb-1">7-11</div>
                                 <small class="text-muted">Menit Konsultasi</small>
                             </div>
                             <div class="col-md-3 col-6 mb-3">

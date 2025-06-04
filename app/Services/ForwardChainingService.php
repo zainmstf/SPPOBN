@@ -135,6 +135,7 @@ class ForwardChainingService
     {
         $sesi = $sesi ?? $this->sesiSekarang;
         $prefixAturan = [
+            0 => 'R0',
             1 => 'R1',
             2 => 'R2',
             3 => 'R3',
@@ -191,30 +192,34 @@ class ForwardChainingService
      */
     protected function canSesiProgress()
     {
-        // Jika sudah ada hasil di sesi ini, cek apakah relevan untuk sesi berikutnya
-        if ($this->hasSesiResults($this->sesiSekarang)) {
-            $sesiResults = $this->getSesiResults($this->sesiSekarang);
-            return $sesiResults['relevant_for_next_session'] && $this->sesiSekarang < 4;
-        }
-
         $aturanSesi = $this->getAturanBySesi();
 
-        // Jika tidak ada aturan untuk sesi ini, tidak bisa lanjut
         if ($aturanSesi->isEmpty()) {
+            Log::debug("No rules available for session");
             return false;
         }
 
-        // Cek apakah ada aturan yang masih memiliki potensi untuk dipenuhi
         foreach ($aturanSesi as $aturan) {
             if (in_array($aturan->id, $this->aturanTerpakai)) {
+                Log::debug("Rule {$aturan->id} already used");
                 continue;
             }
-
             if ($this->hasRulePotential($aturan)) {
+                Log::debug("Rule {$aturan->id} has potential");
                 return true;
             }
+            Log::debug("Rule {$aturan->id} has no potential");
         }
 
+        if ($this->hasSesiResults($this->sesiSekarang)) {
+            $sesiResults = $this->getSesiResults($this->sesiSekarang);
+            $result = $sesiResults['relevant_for_next_session'] && $this->sesiSekarang < 4;
+
+            Log::debug("Has results check - relevant: {$sesiResults['relevant_for_next_session']}, sesi: {$this->sesiSekarang}, returning: " . ($result ? 'true' : 'false'));
+            return $result;
+        }
+
+        Log::debug("No rules with potential found");
         return false;
     }
 
@@ -432,6 +437,21 @@ class ForwardChainingService
 
         return $aturanBelumTerpenuhi;
     }
+    public function applyStartingRule()
+    {
+        // Find the starting rule (R0.1)
+        $startingRule = Aturan::where('kode', 'R0.1')->first();
+        if ($startingRule) {
+            // Immediately apply the rule and log the inference
+            $this->logInferensi($startingRule, $startingRule->konklusi);
+
+            // Add the solution to available facts
+            $this->faktaTersedia[] = $startingRule->konklusi;
+            $this->solusiDitemukan[] = $startingRule->konklusi;
+            $this->aturanTerpakai[] = $startingRule->id;
+        }
+
+    }
 
     /**
      * Get pertanyaan yang belum dijawab dari aturan
@@ -505,16 +525,13 @@ class ForwardChainingService
      */
     public function isKonsultasiSelesai()
     {
-        // Jika sudah mencapai sesi 4 dan menemukan solusi
-        if ($this->sesiSekarang == 4 && !empty($this->solusiDitemukan)) {
-            $sesiResults = $this->getSesiResults(4);
-            if (!$sesiResults['relevant_for_next_session']) {
-                return true;
-            }
-        }
-
         // Jika tidak bisa lanjut sesi dan belum menemukan solusi
         if (!$this->canSesiProgress() && empty($this->solusiDitemukan)) {
+            return true;
+        }
+
+        // Jika sudah mencapai sesi maksimal (sesi 4) DAN sudah selesai proses sesi 4
+        if ($this->sesiSekarang > 4) {
             return true;
         }
 
@@ -526,13 +543,13 @@ class ForwardChainingService
      */
     public function isSesiSelesai()
     {
+
         // Sesi selesai jika tidak ada aturan yang bisa dijalankan lagi
         if (!$this->canSesiProgress()) {
             return true;
         }
 
         // Tambahan: Sesi juga selesai jika sudah menghasilkan hasil 
-        // tapi tidak relevan untuk sesi berikutnya
         $sesiResults = $this->getSesiResults($this->sesiSekarang);
 
         // Jika sesi ini sudah ada hasil tapi tidak relevan untuk sesi berikutnya
@@ -566,7 +583,8 @@ class ForwardChainingService
 
         // Kasus khusus ketika di sesi 4 dengan solusi
         if ($this->sesiSekarang == 4 && !empty($this->solusiDitemukan)) {
-            $sesiResults = $this->getSesiResults(4);
+            $sesiResults = $this->getSesiResults($this->sesiSekarang);
+
             if (!$sesiResults['relevant_for_next_session']) {
                 return [
                     'status' => 'selesai_dengan_solusi',

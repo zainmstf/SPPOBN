@@ -146,7 +146,7 @@
                             </a>
                         @endforeach
                         <div class="px-4">
-                            <a href="{{ route('konsultasi.start') }}"
+                            <a href="{{ route('konsultasi.index') }}"
                                 class="btn btn-block btn-xl btn-light-primary font-bold mt-3">
                                 Mulai Konsultasi Baru
                             </a>
@@ -163,8 +163,16 @@
                             @if ($lastKonsultasi)
                                 <li class="list-group-item">
                                     <div class="d-flex justify-content-between">
-                                        <div>
-                                            {!! nl2br(e(Str::limit($lastKonsultasi->hasil_konsultasi, 430))) !!}
+                                        <div class="mb-3">
+                                            @if (!empty($namaSolusiTerakhir))
+                                                <ol>
+                                                    @foreach ($namaSolusiTerakhir as $solusi)
+                                                        <li>{{ $solusi }}</li>
+                                                    @endforeach
+                                                </ol>
+                                            @else
+                                                <p>Tidak ada solusi yang ditemukan.</p>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mt-3">

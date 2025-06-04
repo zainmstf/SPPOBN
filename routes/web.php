@@ -66,11 +66,10 @@ Route::middleware(['auth', 'user'])->prefix('user')->group(function () {
         Route::get('/{id}/question', [KonsultasiController::class, 'question'])->name('question');
         Route::post('/{id}/answer', [KonsultasiController::class, 'answer'])->name('answer');
         Route::get('/{id}/result', [KonsultasiController::class, 'result'])->name('result');
-        Route::get('/{id}/show', [KonsultasiController::class, 'show'])->name('show');
         Route::post('/{id}/restart', [KonsultasiController::class, 'restart'])->name('restart');
         Route::get('/{id}/progress', [KonsultasiController::class, 'getProgress'])->name('progress');
         Route::get('/{konsultasi}/session-summary', [KonsultasiController::class, 'showSessionSummary'])->name('session-summary');
-        Route::post('/{konsultasi}/continue-session', [KonsultasiController::class, 'continueSession'])->name('continue-session');
+        Route::get('/{konsultasi}/continue-session', [KonsultasiController::class, 'continueSession'])->name('continue-session');
         Route::post('/pending', [KonsultasiController::class, 'pending'])->name('pending');
         Route::get('/{konsultasi}/lanjutkan', action: [KonsultasiController::class, 'continueKonsultasi'])->name('lanjutkan');
         Route::post('/complete', [KonsultasiController::class, 'complete'])->name('complete');

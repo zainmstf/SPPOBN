@@ -22,11 +22,10 @@ class LaporanController extends Controller
 
         $chartDataJson = json_encode($this->getChartData($userId));
         $ratingData = $this->getRatingData($userId);
-        $questionData = $this->getQuestionData($userId);
+
         return view('user.laporan.grafik-perkembangan', compact(
             'chartDataJson',
-            'ratingData',
-            'questionData'
+            'ratingData'
         ));
     }
 
@@ -108,63 +107,60 @@ class LaporanController extends Controller
         ];
     }
 
-    private function getQuestionData($userId)
-    {
-        $pertanyaan = DetailKonsultasi::with(['fakta', 'konsultasi'])
-            ->whereHas('konsultasi', function ($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })
-            ->get()
-            ->groupBy(fn($item) => $item->fakta->deskripsi)
-            ->map(fn($group) => count($group))
-            ->sortDesc()
-            ->take(3);
-
-        return [
-            'questionLabelsJson' => json_encode($pertanyaan->keys()),
-            'questionDataJson' => json_encode($pertanyaan->values())
-        ];
-    }
-
     public function tampilkanRekomendasi()
     {
-        $konsultasi = Konsultasi::where('user_id', Auth::id())->get();
+        $konsultasi = Konsultasi::where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $konsultasi->load('user');
-        $konsultasiIds = $konsultasi->pluck('id');
 
-        $detailKonsultasi = DetailKonsultasi::whereIn('konsultasi_id', $konsultasiIds)
-            ->with('fakta')
-            ->get();
+        $konsultasi->each(function ($konsul) {
+            $hasilKonsultasi = $konsul->hasil_konsultasi;
 
-        $inferensiLog = InferensiLog::whereIn('konsultasi_id', $konsultasiIds)
-            ->whereHas('aturan')
-            ->with('aturan')
-            ->get();
+            // Pastikan hasilKonsultasi adalah array dan tidak null sebelum melanjutkan
+            if (is_array($hasilKonsultasi)) {
+                if (isset($hasilKonsultasi['solusi']) && is_array($hasilKonsultasi['solusi'])) {
+                    $solusiCodes = $hasilKonsultasi['solusi'];
 
-        $solusiAkhir = null;
+                    $solusiDetails = Solusi::whereIn('kode', $solusiCodes)
+                        ->select('nama', 'deskripsi')
+                        ->get();
 
-        // Filter inferensi yang memiliki aturan dan konklusi jenis 'solusi'
-        $inferensiSolusi = $inferensiLog
-            ->filter(function ($item) {
-                return $item->aturan && $item->aturan->jenis_konklusi === 'solusi';
-            })
-            ->last();
+                    $konsul->solusi_rekomendasi = $solusiDetails;
+                } else {
+                    $konsul->solusi_rekomendasi = collect();
+                }
 
-        if ($inferensiSolusi && $inferensiSolusi->aturan->solusi_id) {
-            $solusiAkhir = Solusi::with('rekomendasiNutrisi.sumberNutrisi')
-                ->find($inferensiSolusi->aturan->solusi_id);
-        }
+                // Hitung jumlah fakta yang tersedia
+                if (isset($hasilKonsultasi['fakta_tersedia']) && is_array($hasilKonsultasi['fakta_tersedia'])) {
+                    $konsul->jumlah_fakta = count($hasilKonsultasi['fakta_tersedia']);
+                } else {
+                    $konsul->jumlah_fakta = 0;
+                }
+
+            } else {
+                // Jika hasil_konsultasi null atau bukan array yang diharapkan
+                $konsul->solusi_rekomendasi = collect();
+                $konsul->jumlah_fakta = 0;
+            }
+
+            // Hitung durasi (sesuai dengan kode Blade yang sudah ada)
+            $mulai = Carbon::parse($konsul->created_at);
+            $selesai = Carbon::parse($konsul->updated_at);
+            $konsul->durasi_konsultasi = $mulai->diff($selesai)->format('%i menit %s detik');
+            $konsul->waktu_mulai = $mulai->locale('id')->isoFormat('DD MMM YYYY HH:mm');
+            $konsul->rentang_waktu = $mulai->locale('id')->isoFormat('HH:mm:ss') . ' - ' . $selesai->locale('id')->isoFormat('HH:mm:ss');
+        });
 
         return view('user.laporan.tampilan-rekomendasi', compact(
             'konsultasi',
-            'detailKonsultasi',
-            'inferensiLog',
-            'solusiAkhir'
         ));
     }
 
     public function halamanCetak(Request $request)
     {
+
         $user = Auth::user();
         $data = json_decode($request->input('data'), true);
 

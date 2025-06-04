@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Solusi;
 use App\Models\SumberNutrisi;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -41,15 +42,15 @@ class DashboardController extends Controller
         // Atur progress dan warna tampilan berdasarkan sesi konsultasi saat ini
         foreach ($recentKonsultasi as $konsultasi) {
             switch ($konsultasi->sesi) {
-                case 'risiko_osteoporosis':
+                case '2':
                     $konsultasi->progress = 33;
                     $konsultasi->bgColor = 'primary';
                     break;
-                case 'asupan_nutrisi':
+                case '3':
                     $konsultasi->progress = 66;
                     $konsultasi->bgColor = 'warning';
                     break;
-                case 'preferensi_makanan':
+                case '4':
                     $konsultasi->progress = 100;
                     $konsultasi->bgColor = 'success';
                     break;
@@ -67,6 +68,26 @@ class DashboardController extends Controller
             ->where('status', 'selesai')
             ->latest()
             ->first();
+
+        $namaSolusiTerakhir = []; // Ubah ini menjadi array
+        if ($lastKonsultasi && $lastKonsultasi->hasil_konsultasi) {
+            $dataKonsultasi = $lastKonsultasi->hasil_konsultasi;
+
+            if (isset($dataKonsultasi['solusi']) && is_array($dataKonsultasi['solusi'])) {
+                $kodeSolusi = $dataKonsultasi['solusi'];
+                $solusi = Solusi::whereIn('kode', $kodeSolusi)->get();
+                // Langsung ambil deskripsi sebagai array
+                $namaSolusiTerakhir = $solusi->pluck('deskripsi')->toArray();
+            } else {
+                // Logika fallback Anda untuk regex jika diperlukan
+                preg_match_all('/S\d{3}/', json_encode($lastKonsultasi->hasil_konsultasi), $matches);
+                if (!empty($matches[0])) {
+                    $kodeSolusi = array_unique($matches[0]);
+                    $solusi = Solusi::whereIn('deskripsi', $kodeSolusi)->get();
+                    $namaSolusiTerakhir = $solusi->pluck('deskripsi')->toArray();
+                }
+            }
+        }
 
         // Ambil sesi terakhir user untuk mengetahui aktivitas terakhir
         $session = Sessions::where('user_id', $userId)
@@ -88,7 +109,8 @@ class DashboardController extends Controller
             'recentKonsultasi',
             'lastKonsultasi',
             'lastActivity',
-            'totalSumberNutrisi'
+            'totalSumberNutrisi',
+            'namaSolusiTerakhir'
         ));
     }
     public function getChartData()

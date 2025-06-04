@@ -13,8 +13,6 @@
         <span data-chart="{{ $chartDataJson }}"></span>
         <span data-rating-labels="{{ $ratingData['ratingLabelsJson'] }}"></span>
         <span data-rating-data="{{ $ratingData['ratingDataJson'] }}"></span>
-        <span data-question-labels="{{ $questionData['questionLabelsJson'] }}"></span>
-        <span data-question-data="{{ $questionData['questionDataJson'] }}"></span>
     </div>
     <div class="page-content">
         <div class="row">
@@ -30,21 +28,7 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-md-4">
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h4 class="card-title">Grafik Pertanyaan yang Sering Dijawab</h4>
-                            </div>
-                            <div class="card-body">
-                                <div id="questionChart"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-8">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
                         <h4 class="card-title">Grafik Rating Umpan Balik</h4>

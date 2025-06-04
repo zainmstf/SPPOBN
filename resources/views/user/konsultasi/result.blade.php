@@ -309,7 +309,7 @@
                                             Print Hasil
                                         </a>
                                         </button>
-                                        <a href="{{ route('konsultasi.create') }}"
+                                        <a href="{{ route('konsultasi.index') }}"
                                             class="btn btn-outline-primary btn-block mb-2">
                                             <i class="fas fa-plus me-2"></i>
                                             Konsultasi Baru
@@ -501,7 +501,6 @@
 
 @push('css-top')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
 
     <style>
         .result-status-icon {

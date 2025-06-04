@@ -26,7 +26,7 @@
                                         style="width:100%">
                                         <thead>
                                             <tr>
-                                                <th style="width:5%;">No</th>
+                                                <th style="width:5%;">ID</th>
                                                 <th style="width:10%;">Tanggal Konsultasi</th>
                                                 <th style="width:10%;">Rentang Waktu</th>
                                                 <th style="width:10%;">Durasi</th>
@@ -38,35 +38,20 @@
                                         </thead>
                                         <tbody>
                                             @foreach ($konsultasi as $index => $konsul)
-                                                @php
-                                                    // Ambil detail untuk konsultasi ini
-                                                    $detail = $detailKonsultasi
-                                                        ->where('konsultasi_id', $konsul->id)
-                                                        ->where('jawaban', 'ya');
-                                                    $log = $inferensiLog->where('konsultasi_id', $konsul->id);
-                                                    $solusiLog = $log
-                                                        ->filter(
-                                                            fn($item) => $item->aturan->jenis_konklusi === 'solusi',
-                                                        )
-                                                        ->last();
-                                                    $solusi = $solusiLog
-                                                        ? \App\Models\Solusi::find($solusiLog->aturan->solusi_id)
-                                                        : null;
-
-                                                    // Waktu
-                                                    $mulai = \Carbon\Carbon::parse($konsul->created_at);
-                                                    $selesai = \Carbon\Carbon::parse($konsul->updated_at);
-                                                    $durasi = $mulai->diff($selesai)->format('%i menit %s detik');
-                                                @endphp
                                                 <tr>
-                                                    <td>{{ $index + 1 }}</td>
-                                                    <td>{{ $mulai->locale('id')->isoFormat('DD MMM YYYY HH:mm') }}</td>
-                                                    <td>{{ $mulai->locale('id')->isoFormat('HH:mm:ss') . ' - ' . $selesai->locale('id')->isoFormat('HH:mm:ss') }}
-                                                    </td>
-                                                    <td>{{ $durasi }}</td>
-                                                    <td>{{ $detail->count() }}</td>
+                                                    <td>{{ $konsul->id }}</td>
+                                                    <td>{{ $konsul->waktu_mulai }}</td>
+                                                    <td>{{ $konsul->rentang_waktu }}</td>
+                                                    <td>{{ $konsul->durasi_konsultasi }}</td>
+                                                    <td>{{ $konsul->jumlah_fakta }}</td>
                                                     <td class="truncated-text">
-                                                        {{ $konsul->hasil_konsultasi ?? 'Belum tersedia' }}
+                                                        {{-- Iterasi untuk menampilkan nama dan deskripsi solusi --}}
+                                                        @forelse ($konsul->solusi_rekomendasi as $solusi)
+                                                            <strong>{{ $solusi->nama }}</strong>:
+                                                            {{ $solusi->deskripsi }}
+                                                        @empty
+                                                            Tidak ada solusi yang ditemukan.
+                                                        @endforelse
                                                     </td>
                                                     <td>
                                                         @php
@@ -78,7 +63,6 @@
                                                                 default => 'bg-secondary',
                                                             };
                                                         @endphp
-
                                                         <span class="badge {{ $statusClass }}">
                                                             {{ str_replace('_', ' ', ucwords($status)) }}
                                                         </span>
