@@ -52,11 +52,12 @@
                                                 </a>
                                                 <form
                                                     action="{{ route('admin.rekomendasi-nutrisi.destroy', $rekomendasi->id) }}"
-                                                    method="POST" class="d-inline">
+                                                    method="POST" class="d-inline delete-form"
+                                                    data-nutrisi-name="{{ $rekomendasi->nutrisi }}"
+                                                    data-solusi-kode="{{ $rekomendasi->solusi->kode }}">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-danger btn-sm"
-                                                        onclick="return confirm('Apakah Anda yakin ingin menghapus data ini?')">
+                                                    <button type="button" class="btn btn-danger btn-sm btn-delete">
                                                         <i class="bi-trash-fill"></i> Hapus
                                                     </button>
                                                 </form>
@@ -78,12 +79,60 @@
 @endsection
 
 @push('scripts-bottom')
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- DataTables -->
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+
     <script>
         $(document).ready(function() {
+            // Initialize DataTable
             $('#rekomendasiNutrisiTable').DataTable({
                 responsive: true, // Menjadikan tabel responsif
+            });
+
+            // Handle delete confirmation with SweetAlert
+            $(document).on('click', '.btn-delete', function(e) {
+                e.preventDefault();
+
+                const form = $(this).closest('.delete-form');
+                const nutrisiName = form.data('nutrisi-name');
+                const solusiKode = form.data('solusi-kode');
+
+                Swal.fire({
+                    title: 'Konfirmasi Hapus',
+                    html: `Apakah Anda yakin ingin menghapus rekomendasi nutrisi?<br><br>
+                           <strong>Nutrisi:</strong> ${nutrisiName}<br>
+                           <strong>Solusi:</strong> ${solusiKode}`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Ya, Hapus!',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    customClass: {
+                        popup: 'swal-wide'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading state
+                        Swal.fire({
+                            title: 'Menghapus...',
+                            text: 'Sedang memproses permintaan Anda',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        // Submit the form
+                        form[0].submit();
+                    }
+                });
             });
         });
     </script>
@@ -91,7 +140,22 @@
 
 @push('css-top')
     <style>
-        /* стили */
+        /* Custom styles */
+        .swal-wide {
+            width: 600px !important;
+        }
+
+        /* DataTables responsive styles */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        @media (max-width: 768px) {
+            .btn-sm {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
     </style>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">

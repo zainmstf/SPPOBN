@@ -77,34 +77,36 @@
                                 <div class="text-center mb-3">
                                     <span class="badge bg-secondary fs-6">Kode: {{ $pertanyaan->kode }}</span>
                                 </div>
-                                <h3 class="text-center mb-4" style="line-height: 1.4;">
+                                <h2 class="text-center mb-4" style="line-height: 1.4;">
                                     {{ $pertanyaan->pertanyaan }}
 
-                                    @if ($pertanyaan->kode === 'F007')
-                                        <button type="button" class="btn btn-outline-primary btn-sm ms-2"
-                                            data-bs-toggle="modal" data-bs-target="#bmiCalculatorModal">
-                                            <i class="bi bi-calculator"></i> Hitung BMI
-                                        </button>
+                                    <div>
+                                        @if ($pertanyaan->kode === 'F007')
+                                            <button type="button" class="btn btn-outline-primary btn-sm ms-2"
+                                                data-bs-toggle="modal" data-bs-target="#bmiCalculatorModal">
+                                                <i class="bi bi-calculator"></i> Hitung BMI
+                                            </button>
+                                        @endif
+                                    </div>
+                                    </h3>
+
+
+                                    {{-- Kategori atau info tambahan jika ada --}}
+                                    @if ($pertanyaan->kategori)
+                                        <div class="text-center mb-3">
+                                            <span class="badge bg-light text-dark">
+                                                Kategori: {{ ucwords(str_replace('_', ' ', $pertanyaan->kategori)) }}
+                                            </span>
+                                        </div>
                                     @endif
-                                </h3>
 
-
-                                {{-- Kategori atau info tambahan jika ada --}}
-                                @if ($pertanyaan->kategori)
-                                    <div class="text-center mb-3">
-                                        <span class="badge bg-light text-dark">
-                                            Kategori: {{ ucwords(str_replace('_', ' ', $pertanyaan->kategori)) }}
-                                        </span>
-                                    </div>
-                                @endif
-
-                                {{-- Catatan tambahan jika ada --}}
-                                @if ($pertanyaan->catatan)
-                                    <div class="mt-3 p-2 rounded"
-                                        style="background-color: #e9ecef; font-size: 0.9em; border-left: 3px solid #6c757d;">
-                                        <p class="mb-0"><strong>Catatan:</strong> {{ $pertanyaan->catatan }}</p>
-                                    </div>
-                                @endif
+                                    {{-- Catatan tambahan jika ada --}}
+                                    @if ($pertanyaan->catatan)
+                                        <div class="mt-3 p-2 rounded"
+                                            style="background-color: #e9ecef; font-size: 0.9em; border-left: 3px solid #6c757d;">
+                                            <p class="mb-0"><strong>Catatan:</strong> {{ $pertanyaan->catatan }}</p>
+                                        </div>
+                                    @endif
                             </div>
 
                             {{-- Tombol Jawaban --}}

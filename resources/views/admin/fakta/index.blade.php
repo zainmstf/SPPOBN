@@ -27,10 +27,10 @@
                             <table id="faktaTable" class="table table-bordered">
                                 <thead>
                                     <tr>
-                                        <th style="width: 8%;">Kode</th>
-                                        <th style="width: 35%;">Pertanyaan</th>
+                                        <th style="width: 10%;">Kode</th>
+                                        <th style="width: 30%;">Fakta</th>
+                                        <th style="width: 30%;">Pertanyaan</th>
                                         <th style="width: 15%;">Kategori</th>
-                                        <th style="width: 7%;">Pertama?</th>
                                         <th style="width: 15%;" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
@@ -38,6 +38,7 @@
                                     @foreach ($fakta as $item)
                                         <tr>
                                             <td>{{ $item->kode }}</td>
+                                            <td>{{ $item->deskripsi }}</td>
                                             <td>
                                                 @if (!empty($item->pertanyaan))
                                                     {!! nl2br(e($item->pertanyaan)) !!}
@@ -47,7 +48,6 @@
                                                 @endif
                                             </td>
                                             <td>{{ ucwords(str_replace('_', ' ', $item->kategori)) }}</td>
-                                            <td>{{ $item->is_first ? 'Ya' : 'Tidak' }}</td>
                                             <td class="text-center">
                                                 <div class="d-flex gap-2 justify-content-center">
                                                     <a href="{{ route('admin.basisPengetahuan.fakta.edit', $item->id) }}"

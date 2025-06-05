@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Feedback;
+use App\Models\InferensiLog;
 use App\Models\Konsultasi;
+use App\Models\RekomendasiNutrisi;
 use App\Models\Solusi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
+use App\Services\ForwardChainingService;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 
 class AdminController extends Controller
 {
@@ -101,42 +105,102 @@ class AdminController extends Controller
         $statuses = ['belum_selesai', 'sedang_berjalan', 'selesai'];
         $riwayatKonsultasi = [];
 
+        $sessionNames = [
+            1 => 'Skrining Faktor Risiko',
+            2 => 'Penilaian FRAX',
+            3 => 'Penilaian Nutrisi',
+            4 => 'Preferensi & Kondisi',
+        ];
+
         foreach ($statuses as $status) {
-            $riwayatKonsultasi[$status] = Konsultasi::with('currentPertanyaan')
+            $konsultasiList = Konsultasi::with('currentPertanyaan')
                 ->where('status', $status)
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            $konsultasiList->each(function ($konsultasi) use ($sessionNames) {
+                $konsultasi->nama_sesi = $sessionNames[$konsultasi->sesi] ?? 'Tidak ada sesi aktif';
+
+
+                if (isset($konsultasi->hasil_konsultasi['solusi']) && is_array($konsultasi->hasil_konsultasi['solusi'])) {
+                    $solusiCodes = $konsultasi->hasil_konsultasi['solusi'];
+
+                    // Fetch solution names from the 'solusi' table
+                    $solusiNames = Solusi::whereIn('kode', $solusiCodes)
+                        ->pluck('nama')
+                        ->toArray();
+
+                    $konsultasi->nama_solusi = $solusiNames;
+                } else {
+                    $konsultasi->nama_solusi = []; // No solutions found or invalid format
+                }
+            });
+
+            $riwayatKonsultasi[$status] = $konsultasiList;
         }
+
         return view('admin.konsultasi.riwayat', compact('riwayatKonsultasi'));
     }
 
-    public function showDetail(Konsultasi $konsultasi)
+    public function showDetail($id)
     {
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Anda tidak memiliki akses ke riwayat konsultasi ini.');
+        $konsultasi = Konsultasi::with('user')->where('id', $id)->first();
+
+        $forwardChaining = new ForwardChainingService($konsultasi);
+
+        // Get hasil konsultasi
+        $hasilKonsultasi = $forwardChaining->getHasilKonsultasi();
+        $detailSolusi = $forwardChaining->getDetailSolusi();
+        $traceInferensi = $forwardChaining->getTraceInferensi();
+
+        // PERBAIKAN: Get status message untuk hasil
+        $statusMessage = $forwardChaining->getStatusMessage();
+
+        // Get jawaban user untuk display
+        $jawabanUser = $konsultasi->detailKonsultasi()
+            ->with('fakta')
+            ->get()
+            ->map(function ($detail) {
+                return [
+                    'kode' => $detail->fakta->kode,
+                    'pertanyaan' => $detail->fakta->pertanyaan,
+                    'jawaban' => $detail->jawaban,
+                    'kategori' => $detail->fakta->kategori
+                ];
+            });
+
+        $rekomendasiNutrisi = collect();
+
+        if (!empty($hasilKonsultasi)) {
+            // Ambil ID solusi dari hasil konsultasi
+            $solusiIds = collect($detailSolusi)->pluck('id');
+
+            // Get rekomendasi nutrisi dengan sumber nutrisi
+            $rekomendasiNutrisi = RekomendasiNutrisi::whereIn('solusi_id', $solusiIds)
+                ->with([
+                    'sumberNutrisi' => function ($query) {
+                        $query->orderBy('jenis_sumber');
+                    },
+                    'solusi' => function ($query) { // Eager load relasi 'solusi'
+                        $query->select('id', 'nama'); // Pilih kolom 'id' dan 'nama' dari tabel solusi
+                    }
+                ])
+                ->orderBy('solusi_id')
+                ->get()
+                ->groupBy('nutrisi'); // Group berdasarkan jenis nutrisi
         }
 
-        $konsultasi->load('user');
-        $detailKonsultasi = $konsultasi->detailKonsultasi()->with('fakta')->get();
-        $inferensiLog = $konsultasi->inferensiLog()->with('aturan')->get();
-        $solusiAkhir = null;
-        $inferensiSolusi = $inferensiLog->filter(function ($item) {
-            if (!$item->aturan) {
-                Log::warning("InferensiLog ID {$item->id} tidak memiliki aturan terkait.");
-                return false;
-            }
-            return $item->aturan->jenis_konklusi === 'solusi';
-        })->last();
-
-        if ($inferensiSolusi) {
-            $solusiAkhir = Solusi::find($inferensiSolusi->aturan->solusi_id);
-            if ($solusiAkhir) {
-                $solusiAkhir->load('rekomendasiNutrisi.sumberNutrisi');
-            }
-        }
-
-        return view('admin.konsultasi.detail', compact('konsultasi', 'detailKonsultasi', 'inferensiLog', 'solusiAkhir', 'inferensiSolusi'));
+        return view('admin.konsultasi.detail', compact(
+            'konsultasi',
+            'hasilKonsultasi',
+            'detailSolusi',
+            'traceInferensi',
+            'jawabanUser',
+            'statusMessage',
+            'rekomendasiNutrisi'
+        ));
     }
+
     public function cetak(Konsultasi $konsultasi)
     {
         if (Auth::user()->role !== 'admin') {
@@ -206,19 +270,26 @@ class AdminController extends Controller
             ->get();
 
         // Pertanyaan Paling Sering Diajukan
-        $RekomendasiPalingSeringDiajukan = Solusi::whereHas('aturan', function ($query) {
-            $query->where('jenis_konklusi', 'solusi');
+        $RekomendasiPalingSeringDiajukan = Solusi::whereIn('kode', function ($query) {
+            $query->select('konklusi')
+                ->from('aturan')
+                ->where('jenis_konklusi', 'solusi');
         })
-            ->withCount([
-                'inferensiLogs as total' => function ($query) {
-                    $query->join('aturan as aturan_1', 'inferensi_log.aturan_id', '=', 'aturan_1.id')
-                        ->join('aturan as aturan_2', 'inferensi_log.aturan_id', '=', 'aturan_2.id')
-                        ->where('aturan_1.jenis_konklusi', 'solusi');
-                }
-            ])
-            ->orderByDesc('total')
-            ->limit(5)
-            ->get();
+            ->whereNotIn('kode', ['s001', 's002', 's003', 's004', 's005', 's006', 's007', 's008'])
+            ->get()
+            ->map(function ($solusi) {
+                // Hitung manual jumlah inferensi log
+                $total = InferensiLog::whereHas('aturan', function ($query) use ($solusi) {
+                    $query->where('konklusi', $solusi->kode)
+                        ->where('jenis_konklusi', 'solusi');
+                })->count();
+
+                $solusi->total = $total;
+                return $solusi;
+            })
+            ->sortByDesc('total')
+            ->take(5)
+            ->values();
 
         // Rata-Rata Rating Umpan Balik
         $rataRataRating = Feedback::avg('rating') ?? 0;
@@ -273,7 +344,7 @@ class AdminController extends Controller
                     // Generate PDF menggunakan library server-side
                     $tanggal = date('Y-m-d'); // Format: 2025-05-12
                     $namaFile = 'laporan_konsultasi_' . $tanggal . '.pdf';
-                    $pdf = PDF::loadView('admin.konsultasi.cetak_halaman', ['data' => $dataCetak, 'user' => $user]);
+                    $pdf = Pdf::loadView('admin.konsultasi.cetak_halaman', ['data' => $dataCetak, 'user' => $user]);
                     return $pdf->download($namaFile);
                 } else {
                     return view('admin.konsultasi.cetak_halaman', ['data' => $dataCetak, 'user' => $user],);

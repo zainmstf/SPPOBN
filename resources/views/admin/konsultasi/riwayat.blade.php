@@ -118,10 +118,10 @@
                                         <thead>
                                             <tr>
                                                 <th style="width: 5%;">ID</th>
-                                                <th style="width: 10%;">Nama</th>
+                                                <th style="width: 10%;">Username</th>
                                                 <th style="width: 15%;">Tanggal Dibuat</th>
                                                 <th style="width: 15%;">Tanggal Selesai</th>
-                                                <th style="width: 40%;">Rekomendasi</th>
+                                                <th style="width: 40%;">Hasil Konsultasi</th>
                                                 <th style="width: 15%;">Aksi</th>
                                             </tr>
                                         </thead>
@@ -135,7 +135,12 @@
                                                     <td>{{ \Carbon\Carbon::parse($konsultasi->completed_at)->format('d M Y, H:i') }}
                                                     </td>
                                                     <td>
-                                                        {{ Str::limit($konsultasi->hasil_konsultasi ? ucwords(str_replace('_', ' ', $konsultasi->hasil_konsultasi)) : '-', 100) }}
+                                                        @if (!empty($konsultasi->nama_solusi))
+                                                            {{-- Join the solution names with a comma and space for display --}}
+                                                            {{ implode(', ', $konsultasi->nama_solusi) }}
+                                                        @else
+                                                            -
+                                                        @endif
                                                     </td>
                                                     <td>
                                                         <a href="{{ route('admin.konsultasi.show', $konsultasi->id) }}"

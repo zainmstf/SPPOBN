@@ -46,10 +46,8 @@ class FaktaController extends Controller
             'kode' => 'required|string|max:10|unique:fakta,kode',
             'pertanyaan' => 'nullable|string', // Pertanyaan bisa null jika is_askable false
             'deskripsi' => 'required|string',
-            'kategori' => 'required|in:risiko_osteoporosis,asupan_nutrisi,preferensi_makanan',
-            'is_first' => 'nullable|boolean',
+            'kategori' => 'required|in:skrining_awal,risiko_fraktur,asupan_nutrisi,preferensi_makanan',
             'is_askable' => 'nullable|boolean',
-            'is_default' => 'nullable|boolean',
         ]);
 
         Fakta::create([
@@ -57,9 +55,7 @@ class FaktaController extends Controller
             'pertanyaan' => $validated['is_askable'] ? ($validated['pertanyaan'] ?? null) : null,
             'deskripsi' => $validated['deskripsi'],
             'kategori' => $validated['kategori'],
-            'is_first' => $request->has('is_first'),
             'is_askable' => $request->has('is_askable'),
-            'is_default' => $request->has('is_default'),
         ]);
 
         return redirect()->route('admin.basisPengetahuan.fakta.index')

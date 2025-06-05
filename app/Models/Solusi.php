@@ -32,4 +32,8 @@ class Solusi extends Model
         return $this->hasMany(Aturan::class);
     }
 
+    public function inferensiLogs()
+    {
+        return $this->hasManyThrough(InferensiLog::class, Aturan::class);
+    }
 }

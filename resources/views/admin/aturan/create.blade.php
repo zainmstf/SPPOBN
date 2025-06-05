@@ -26,6 +26,16 @@
                             <div class="form-group">
                                 <label for="kode">Kode</label>
                                 <input type="text" name="kode" id="kode" class="form-control" required>
+                                <small>Format Penulisan Kode :
+                                    <ul>
+                                        <li>R0.</li>
+                                        <li>R1.</li>
+                                        <li>R2.</li>
+                                        <li>R3.</li>
+                                        <li>R4.</li>
+                                    </ul>
+                                    Kode Aturan harus sesuai dengan prefix sesi jika tidak, akan error !
+                                </small>
                             </div>
 
                             <div class="form-group">
@@ -36,8 +46,10 @@
                             <div class="mb-3">
                                 <label for="premis" class="form-label">Premis (Fakta)</label>
                                 <select name="premis[]" id="premis" class="form-select" multiple>
+                                    <option value="START">START</option>
                                     @foreach ($fakta as $item)
-                                        <option value="{{ $item['kode'] }}">{{ $item['kode'] }}</option>
+                                        <option value="{{ $item['kode'] }}">{{ $item['kode'] . '-' . $item['deskripsi'] }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -92,12 +104,8 @@
             const jenisKonklusi = document.getElementById('jenis_konklusi');
             const konklusiSelect = document.getElementById('konklusi');
 
-            console.log("Script dimuat.");
-            console.log("Elemen jenisKonklusi:", jenisKonklusi);
-            console.log("Elemen konklusiSelect:", konklusiSelect);
-
-            const faktaData = @json($fakta); // contoh: [{id:1, kode:'F001'}, ...]
-            const solusiData = @json($solusi); // contoh: [{id:1, nama:'Solusi A'}, ...]
+            const faktaData = @json($fakta);
+            const solusiData = @json($solusi);
 
             function updateKonklusiOptions() {
                 console.log("Fungsi updateKonklusiOptions dipanggil.");
@@ -105,14 +113,25 @@
                 const selected = jenisKonklusi.value;
                 console.log("Jenis konklusi terpilih:", selected);
 
-                konklusiSelect.innerHTML = '';
+                konklusiSelect.innerHTML = ''; // Mengosongkan pilihan sebelumnya
 
                 const source = selected === 'fakta' ? faktaData : solusiData;
 
-                source.forEach(item => {
+                // Filter data jika yang dipilih adalah 'fakta'
+                const filteredSource = source.filter(item => {
+                    if (selected === 'fakta') {
+                        // Hanya ambil item yang kodenya dimulai dengan 'FA'
+                        return item.kode && item.kode.startsWith('FA');
+                    }
+                    // Untuk 'solusi' atau lainnya, kembalikan semua item
+                    return true;
+                });
+
+                filteredSource.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item.kode;
-                    option.textContent = item.kode || item.nama;
+                    // Menggabungkan kode dan deskripsi untuk tampilan
+                    option.textContent = item.kode + ' - ' + (item.deskripsi || item.nama);
                     konklusiSelect.appendChild(option);
                 });
 

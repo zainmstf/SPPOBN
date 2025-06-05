@@ -69,11 +69,10 @@
                                 <i class="bi-pencil"></i> Edit
                             </a>
                             <form action="{{ route('admin.konten-edukasi.destroy', $konten->id) }}" method="POST"
-                                class="d-inline">
+                                class="d-inline delete-form" data-konten-title="{{ $konten->judul }}">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger btn-delete"
-                                    onclick="return confirm('Yakin ingin menghapus konten ini?')">
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete">
                                     <i class="bi-trash"></i> Hapus
                                 </button>
                             </form>
@@ -106,11 +105,57 @@
 
     <x-modal-edukasi />
 @endsection
+
 @push('scripts-bottom')
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script type="module">
         import {
             setupEdukasiModal
         } from '{{ asset('storage/js/components/modal-edukasi.js') }}';
         setupEdukasiModal();
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle delete confirmation with SweetAlert
+            document.querySelectorAll('.btn-delete').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    const form = this.closest('.delete-form');
+                    const kontenTitle = form.dataset.kontenTitle;
+
+                    Swal.fire({
+                        title: 'Konfirmasi Hapus',
+                        text: `Apakah Anda yakin ingin menghapus konten "${kontenTitle}"?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Ya, Hapus!',
+                        cancelButtonText: 'Batal',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Show loading state
+                            Swal.fire({
+                                title: 'Menghapus...',
+                                text: 'Sedang memproses permintaan Anda',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            // Submit the form
+                            form.submit();
+                        }
+                    });
+                });
+            });
+        });
     </script>
 @endpush

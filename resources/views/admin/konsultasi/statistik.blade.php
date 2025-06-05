@@ -105,12 +105,13 @@
                             <div class="col-md-6">
                                 <div class="card shadow-sm">
                                     <div class="card-body">
-                                        <h5 class="card-title">Rekomendasi Paling Sering Diberikan</h5>
+                                        <h5 class="card-title">Rekomendasi Nutrisi Paling Sering Diberikan</h5>
                                         <ul class="list-group">
                                             @forelse($RekomendasiPalingSeringDiajukan as $rekomendasi)
                                                 <li class="list-group-item d-flex justify-content-between align-items-center"
-                                                    data-bs-toggle="tooltip" title="{{ $rekomendasi->nama }}">
-                                                    {{ strip_tags( Str::limit($rekomendasi->deskripsi, 100) )}}
+                                                    data-bs-toggle="tooltip"
+                                                    title="{{ $rekomendasi->kode . '-' . $rekomendasi->nama }}">
+                                                    {{ strip_tags(Str::limit($rekomendasi->deskripsi, 100)) }}
                                                     <span
                                                         class="badge bg-primary rounded-pill">{{ $rekomendasi->total }}</span>
                                                 </li>
@@ -146,7 +147,7 @@
         var categories = data.map(function(item) {
             // Ubah string tanggal ke objek Date
             var dateObj = new Date(item.tanggal);
-            
+
             // Format: 25 Feb 2025
             return dateObj.toLocaleDateString('id-ID', {
                 day: '2-digit',

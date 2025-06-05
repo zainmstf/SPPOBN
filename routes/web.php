@@ -126,6 +126,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
         Route::post('/admin/basis-pengetahuan/aturan/set-default-solusi', [AturanController::class, 'setDefaultSolusi'])->name('admin.basisPengetahuan.aturan.setDefaultSolusi');
         Route::post('/admin/basis-pengetahuan/aturan/set-default-fakta', [AturanController::class, 'setDefaultFakta'])->name('admin.basisPengetahuan.aturan.setDefaultFakta');
+        Route::post('/admin/basis-pengetahuan/aturan/{id}/toggle-status', [AturanController::class, 'toggleStatus'])->name('admin.basisPengetahuan.aturan.toggleStatus');
 
         // Visualisasi Pohon Keputusan
         Route::get('/visualisasi', [VisualisasiController::class, 'index'])->name('admin.basisPengetahuan.visualisasi.index');

@@ -44,7 +44,6 @@ class SolusiController extends Controller
             'nama' => 'required|string|max:255',
             'deskripsi' => 'required|string',
             'peringatan_konsultasi' => 'nullable|string',
-            'is_default' => 'nullable|boolean', // Tambahkan validasi untuk is_default
         ]);
 
         // Simpan data solusi baru
@@ -53,7 +52,6 @@ class SolusiController extends Controller
             'nama' => $validated['nama'],
             'deskripsi' => $validated['deskripsi'],
             'peringatan_konsultasi' => $validated['peringatan_konsultasi'] ?? null,
-            'is_default' => $request->has('is_default') ? 1 : 0, // Simpan nilai is_default
         ]);
 
         // Redirect ke halaman daftar solusi dengan pesan sukses
@@ -103,7 +101,6 @@ class SolusiController extends Controller
             'nama' => 'required|string|max:255',
             'deskripsi' => 'required|string',
             'peringatan_konsultasi' => 'nullable|string',
-            'is_default' => 'nullable|boolean', // Tambahkan validasi untuk is_default
         ]);
 
         // Mencari data solusi yang akan diupdate
@@ -115,7 +112,6 @@ class SolusiController extends Controller
             'nama' => $validated['nama'],
             'deskripsi' => $validated['deskripsi'],
             'peringatan_konsultasi' => $validated['peringatan_konsultasi'] ?? null,
-            'is_default' => $request->has('is_default') ? 1 : 0, // Simpan nilai is_default
         ]);
 
         // Redirect ke halaman daftar solusi dengan pesan sukses

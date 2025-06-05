@@ -31,6 +31,13 @@
                                 @error('kode')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                                <small>Format Penulisan Kode :
+                                    <ul>
+                                        <li>S[nomor] : Solusi</li>
+
+                                    </ul>
+                                    Kode Solusi harus sesuai jika tidak, akan error !
+                                </small>
                             </div>
 
                             <div class="mb-3">
@@ -60,13 +67,6 @@
                                 @error('peringatan_konsultasi')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                            </div>
-
-                            {{-- Is Default --}}
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" name="is_default" id="is_default"
-                                    value="1" {{ old('is_default') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_default">Jadikan sebagai solusi default</label>
                             </div>
 
                             <div class="d-flex justify-content-end">

@@ -32,6 +32,13 @@
                                 @error('kode')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                                <small>Format Penulisan Kode :
+                                    <ul>
+                                        <li>F[nomor] : Fakta</li>
+                                        <li>FA[nomor] : Fakta Antara</li>
+                                    </ul>
+                                    Kode Fakta harus sesuai jika tidak, akan error !
+                                </small>
                             </div>
 
                             {{-- Pertanyaan --}}
@@ -60,13 +67,20 @@
                                 <select name="kategori" id="kategori"
                                     class="form-select @error('kategori') is-invalid @enderror" required>
                                     <option value="">-- Pilih Kategori --</option>
-                                    <option value="risiko_osteoporosis"
-                                        {{ old('kategori') == 'risiko_osteoporosis' ? 'selected' : '' }}>Risiko Osteoporosis
+                                    <option value="skrining_awal"
+                                        {{ old('kategori') == 'skrining_awal' ? 'selected' : '' }}>Sesi 1 - Skrining Awal
+                                    </option>
+                                    <option value="risiko_fraktur"
+                                        {{ old('kategori') == 'risiko_fraktur' ? 'selected' : '' }}>Sesi 2 = Klasifikasi
+                                        Risiko
+                                        Fraktur
                                     </option>
                                     <option value="asupan_nutrisi"
-                                        {{ old('kategori') == 'asupan_nutrisi' ? 'selected' : '' }}>Asupan Nutrisi</option>
+                                        {{ old('kategori') == 'asupan_nutrisi' ? 'selected' : '' }}>Sesi 3 - Asupan Nutrisi
+                                    </option>
                                     <option value="preferensi_makanan"
-                                        {{ old('kategori') == 'preferensi_makanan' ? 'selected' : '' }}>Preferensi Makanan
+                                        {{ old('kategori') == 'preferensi_makanan' ? 'selected' : '' }}>Sesi 4 - Preferensi
+                                        Makanan
                                     </option>
                                 </select>
                                 @error('kategori')
@@ -74,31 +88,14 @@
                                 @enderror
                             </div>
 
-                            {{-- Is First --}}
-                            <div class="mb-3 form-check">
-                                <input class="form-check-input" type="checkbox" name="is_first" id="is_first"
-                                    value="1" {{ old('is_first') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_first">Tandai sebagai fakta pertama dalam
-                                    sesi</label>
-                            </div>
-
                             {{-- Is Askable --}}
                             <div class="mb-3 form-check">
                                 <input class="form-check-input" type="checkbox" name="is_askable" id="is_askable"
                                     value="1" {{ old('is_askable', 1) ? 'checked' : '' }}>
                                 <label class="form-check-label" for="is_askable">Dapat ditanyakan (pertanyaan)</label>
-                                <small class="form-text text-muted">Jika tidak dicentang, fakta ini tidak akan menjadi
+                                <small class="form-text text-muted">Jika tidak dicentang, fakta ini adalah fakta antara dan
+                                    tidak akan menjadi
                                     pertanyaan.</small>
-                            </div>
-
-                            {{-- Is Default --}}
-                            <div class="mb-3 form-check">
-                                <input class="form-check-input" type="checkbox" name="is_default" id="is_default"
-                                    value="1" {{ old('is_default') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_default">Jadikan sebagai fakta default untuk
-                                    kategori ini</label>
-                                <small class="form-text text-muted">Fakta ini akan digunakan jika tidak ada aturan lain
-                                    yang menghasilkan fakta untuk kategori ini.</small>
                             </div>
 
                             {{-- Tombol Aksi --}}

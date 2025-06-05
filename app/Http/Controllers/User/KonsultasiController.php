@@ -11,8 +11,6 @@ use App\Services\ForwardChainingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Barryvdh\DomPDF\PDF;
 
 class KonsultasiController extends Controller
 {
@@ -75,7 +73,7 @@ class KonsultasiController extends Controller
         $forwardChaining = new ForwardChainingService($konsultasi);
 
         // Check if S001 is already in solutions
-        if (in_array('S001', $forwardChaining->getHasilKonsultasi()['solusi']) && $konsultasi->sesi == 0) {
+        if ($forwardChaining->getHasilKonsultasi()['solusi'] && $konsultasi->sesi == 0) {
             return redirect()->route('konsultasi.continue-session', $konsultasi->id);
         }
 
@@ -417,12 +415,6 @@ class KonsultasiController extends Controller
             $bisaLanjutSesi = true;
         }
 
-        \Log::info('Session Summary Debug:', [
-            'sesi' => $sesiSekarang,
-            'hasil_sesi_sekarang' => $hasilSesiSekarang,
-            'bisa_lanjut_sesi' => $bisaLanjutSesi
-        ]);
-
         // PERBAIKAN: Jika tidak bisa lanjut sesi dan belum di sesi 4
         if (!$bisaLanjutSesi && $sesiSekarang <= 4) {
             $konsultasi->update([
@@ -498,12 +490,6 @@ class KonsultasiController extends Controller
         // PERBAIKAN UTAMA: Cek hasil sesi saat ini secara spesifik
         $sesiSekarang = $hasilKonsultasi['sesi'];
         $hasilSesiSekarang = $forwardChaining->getSesiResults($sesiSekarang);
-
-        \Log::info('Continue Session - Hasil Sesi:', [
-            'sesi' => $sesiSekarang,
-            'hasil_sesi' => $hasilSesiSekarang,
-            'has_results' => $hasilSesiSekarang['has_results']
-        ]);
 
         // Jika sesi saat ini tidak menghasilkan fakta antara atau solusi, tidak bisa lanjut
         if (!$hasilSesiSekarang['has_results']) {

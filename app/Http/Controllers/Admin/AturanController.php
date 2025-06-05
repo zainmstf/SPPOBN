@@ -33,8 +33,8 @@ class AturanController extends Controller
     // Controller
     public function create()
     {
-        $fakta = Fakta::all(['id', 'kode'])->toArray();
-        $solusi = Solusi::all(['id', 'kode'])->toArray();
+        $fakta = Fakta::all(['id', 'kode', 'deskripsi'])->toArray();
+        $solusi = Solusi::all(['id', 'kode', 'deskripsi'])->toArray();
         return view('admin.aturan.create', compact('fakta', 'solusi'));
     }
 
@@ -98,18 +98,6 @@ class AturanController extends Controller
     }
 
     /**
-     * Menampilkan detail aturan.
-     *
-     * @param  \App\Models\Aturan  $aturan
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Contracts\View\Factory
-     */
-    public function show(Aturan $aturan)
-    {
-        $aturan->load('solusi');
-        return view('admin.aturan.show', compact('aturan'));
-    }
-
-    /**
      * Menampilkan form untuk mengedit aturan.
      *
      * @param  \App\Models\Aturan  $aturan
@@ -118,8 +106,8 @@ class AturanController extends Controller
     public function edit($id)
     {
         $aturan = Aturan::findOrFail($id);
-        $fakta = Fakta::all(['id', 'kode'])->toArray();
-        $solusi = Solusi::all(['id', 'kode'])->toArray();
+        $fakta = Fakta::all(['id', 'kode', 'deskripsi'])->toArray();
+        $solusi = Solusi::all(['id', 'kode', 'deskripsi'])->toArray();
         return view('admin.aturan.edit', compact('aturan', 'fakta', 'solusi'));
     }
 
@@ -195,68 +183,33 @@ class AturanController extends Controller
         return redirect()->route('admin.basisPengetahuan.aturan.index')->with('success', 'Aturan berhasil dihapus.');
     }
 
-    /**
-     * Mengaktifkan aturan.
-     *
-     * @param  \App\Models\Aturan  $aturan
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function activate(Aturan $aturan)
+    public function toggleStatus(Request $request, $id)
     {
-        $aturan->update(['is_active' => 1]);
-        return back()->with('success', "Aturan '{$aturan->kode}' berhasil diaktifkan.");
-    }
+        try {
+            $aturan = Aturan::findOrFail($id);
 
-    /**
-     * Menonaktifkan aturan.
-     *
-     * @param  \App\Models\Aturan  $aturan
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function deactivate(Aturan $aturan)
-    {
-        $aturan->update(['is_active' => 0]);
-        return back()->with('success', "Aturan '{$aturan->kode}' berhasil dinonaktifkan.");
-    }
+            // Validasi input
+            $request->validate([
+                'is_active' => 'required|boolean'
+            ]);
 
-    public function setDefaultSolusi(Request $request)
-    {
+            // Update status
+            $aturan->update([
+                'is_active' => $request->is_active
+            ]);
 
-        $request->validate([
-            'default_solusi_id' => 'required|exists:solusi,id',
-        ]);
+            $status = $request->is_active ? '1' : '0';
 
-        // Reset semua default solusi
-        Solusi::where('is_default', 1)->update(['is_default' => 0]);
-
-        // Set solusi yang dipilih menjadi default
-        Solusi::findOrFail($request->default_solusi_id)->update(['is_default' => 1]);
-
-        return back()->with('success', 'Solusi default berhasil diatur.');
-    }
-
-    public function setDefaultFakta(Request $request)
-    {
-        $request->validate([
-            'kategori' => 'required|in:risiko_osteoporosis,asupan_nutrisi,preferensi_makanan',
-            'default_fakta_id' => 'required|exists:fakta,id,kategori,' . $request->kategori,
-        ]);
-
-        $fakta = Fakta::findOrFail($request->default_fakta_id);
-        if ($fakta->is_askable) {
-            return back()->with('error', 'Fakta yang dipilih adalah pertanyaan dan tidak dapat dijadikan default.');
+            return response()->json([
+                'success' => true,
+                'message' => "Aturan '{$aturan->kode}' berhasil {$status}.",
+                'status' => $request->is_active ? 'Aktif' : 'Tidak Aktif'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui status aturan: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Reset semua default fakta untuk kategori yang dipilih
-        Fakta::where('kategori', $request->kategori)
-            ->where('is_default', 1)
-            ->update(['is_default' => 0]);
-
-        // Set fakta yang dipilih menjadi default
-        Fakta::where('id', $request->default_fakta_id)
-            ->where('is_askable', 0)
-            ->update(['is_default' => 1]);
-
-        return back()->with('success', 'Fakta default untuk kategori ' . ucwords(str_replace('_', ' ', $request->kategori)) . ' berhasil diatur.');
     }
 }

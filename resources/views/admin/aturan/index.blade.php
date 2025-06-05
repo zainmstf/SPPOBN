@@ -18,14 +18,6 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0"><i class="bi-lightbulb-fill"></i> Daftar Aturan</h4>
                         <div>
-                            <button class="btn btn-sm btn-info me-2" data-bs-toggle="modal"
-                                data-bs-target="#setDefaultSolusiAturanModal">
-                                <i class="bi bi-gear-fill align-middle me-1"></i> Set Solusi Default
-                            </button>
-                            <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal"
-                                data-bs-target="#setDefaultFaktaTurunanModal">
-                                <i class="bi bi-gear-fill align-middle me-1"></i> Set Fakta Default
-                            </button>
                             <a href="{{ route('admin.basisPengetahuan.aturan.create') }}" class="btn btn-sm btn-primary">
                                 <i class="bi bi-plus-circle align-middle me-1"></i> Tambah Aturan
                             </a>
@@ -54,7 +46,16 @@
                                             <td>{!! nl2br(e($item->premis)) !!}</td>
                                             <td>{{ $item->konklusi }}</td>
                                             <td>{{ ucwords($item->jenis_konklusi) }}</td>
-                                            <td>{{ $item->is_active ? 'Aktif' : 'Tidak Aktif' }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <div class="form-check form-switch me-2">
+                                                        <input class="form-check-input status-toggle" type="checkbox"
+                                                            role="switch" id="flexSwitchCheck{{ $item->id }}"
+                                                            {{ $item->is_active == 1 ? 'checked' : '' }}
+                                                            data-id="{{ $item->id }}">
+                                                    </div>
+                                                </div>
+                                            </td>
                                             <td class="text-center">
                                                 <div class="d-flex gap-2 justify-content-center">
                                                     <a href="{{ route('admin.basisPengetahuan.aturan.edit', $item->id) }}"
@@ -79,87 +80,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-    <!-- Modal Set Default Solusi -->
-    <div class="modal fade" id="setDefaultSolusiAturanModal" tabindex="-1"
-        aria-labelledby="setDefaultSolusiAturanModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="setDefaultSolusiAturanModalLabel">Set Default Solusi</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="{{ route('admin.basisPengetahuan.aturan.setDefaultSolusi') }}" method="POST">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="default_solusi_id">Pilih Solusi untuk diatur sebagai Default:</label>
-                            <select class="form-control" id="default_solusi_id" name="default_solusi_id" required>
-                                <option value="">-- Pilih Solusi --</option>
-                                @foreach ($solusi as $sls)
-                                    <option value="{{ $sls->id }}">{{ $sls->nama }} ({{ $sls->kode }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            <small class="form-text text-muted">Solusi yang dipilih akan ditandai sebagai default di tabel
-                                Solusi.</small>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Set Default Solusi</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Set Default Fakta -->
-    <div class="modal fade" id="setDefaultFaktaTurunanModal" tabindex="-1"
-        aria-labelledby="setDefaultFaktaTurunanModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="setDefaultFaktaTurunanModalLabel">Set Default Fakta (Bukan Pertanyaan) per
-                        Kategori</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="{{ route('admin.basisPengetahuan.aturan.setDefaultFakta') }}" method="POST">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="form-group mb-3">
-                            <label for="default_fakta_kategori">Pilih Kategori Fakta:</label>
-                            <select class="form-control" id="default_fakta_kategori" name="kategori" required>
-                                <option value="">-- Pilih Kategori --</option>
-                                <option value="risiko_osteoporosis">Risiko Osteoporosis</option>
-                                <option value="asupan_nutrisi">Asupan Nutrisi</option>
-                                <option value="preferensi_makanan">Preferensi Makanan</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="default_fakta_id">Pilih Fakta Default (yang bukan pertanyaan):</label>
-                            <select class="form-control" id="default_fakta_id" name="default_fakta_id" required>
-                                <option value="">-- Pilih Fakta --</option>
-                                @foreach ($fakta as $f)
-                                    @if (!$f->is_askable)
-                                        <option value="{{ $f->id }}" data-kategori="{{ $f->kategori }}">
-                                            {{ $f->deskripsi }} ({{ $f->kode }}) -
-                                            {{ ucwords(str_replace('_', ' ', $f->kategori)) }}
-                                        </option>
-                                    @endif
-                                @endforeach
-                            </select>
-                            <small class="form-text text-muted">Fakta yang dipilih (pada kategori ini dan bukan pertanyaan)
-                                akan ditandai sebagai default di tabel Fakta.</small>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Set Default Fakta</button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -196,49 +116,79 @@
                 });
             });
 
-            // Make sure Bootstrap 5 Modal works
-            const solusiModal = document.getElementById('setDefaultSolusiAturanModal');
-            if (solusiModal) {
-                const bsModal = new bootstrap.Modal(solusiModal);
-                $('.modal-solusi-btn').on('click', function() {
-                    bsModal.show();
-                });
-            }
+            // Handle Bootstrap switch toggle change
+            $('.status-toggle').on('change', function() {
+                const toggle = $(this);
+                const statusBadge = toggle.closest('td').find('.status-badge');
+                const aturanId = toggle.data('id');
+                const isActive = toggle.is(':checked') ? 1 : 0;
 
-            const faktaModal = document.getElementById('setDefaultFaktaTurunanModal');
-            if (faktaModal) {
-                const bsFaktaModal = new bootstrap.Modal(faktaModal);
-                $('.modal-fakta-btn').on('click', function() {
-                    bsFaktaModal.show();
-                });
-            }
+                // Disable toggle during request
+                toggle.prop('disabled', true);
 
-            // Filter fakta berdasarkan kategori pada modal set default fakta
-            $('#default_fakta_kategori').on('change', function() {
-                const kategori = $(this).val();
-                $('#default_fakta_id').val(''); // Reset pilihan fakta jika kategori berubah
+                // AJAX request to update status
+                $.ajax({
+                    url: '{{ route('admin.basisPengetahuan.aturan.toggleStatus', ':id') }}'
+                        .replace(':id', aturanId),
+                    method: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        is_active: isActive
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Update badge based on response
+                            if (response.is_active ===
+                                1) { // Jika dari server mengembalikan is_active = 1
+                                statusBadge.removeClass('bg-secondary').addClass('bg-success')
+                                    .text('Aktif'); // Tampilkan 'Aktif'
+                                toastMessage = 'Aturan berhasil diaktifkan!'
+                            } else { // Jika dari server mengembalikan is_active = 0
+                                statusBadge.removeClass('bg-success').addClass('bg-secondary')
+                                    .text('Tidak Aktif'); // Tampilkan 'Tidak Aktif'
+                                toastMessage = 'Aturan berhasil dinonaktifkan!'
+                            }
 
-                // Filter options based on kategori
-                $('#default_fakta_id option').each(function() {
-                    if ($(this).val() === '') {
-                        // Always show the placeholder option
-                        $(this).show();
-                    } else if ($(this).data('kategori') === kategori) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
+                            // Show success toast
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: toastMessage,
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        // Revert toggle state on error
+                        toggle.prop('checked', !
+                            isActive);
+
+                        let errorMessage = 'Gagal memperbarui status aturan!';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        // Show error toast
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: errorMessage,
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                    },
+                    complete: function() {
+                        // Re-enable toggle
+                        toggle.prop('disabled', false);
                     }
                 });
-            });
-
-            // Pada saat modal fakta ditampilkan
-            $('#setDefaultFaktaTurunanModal').on('show.bs.modal', function() {
-                // Reset selections
-                $('#default_fakta_kategori').val('');
-                $('#default_fakta_id').val('');
-
-                // Show all options initially
-                $('#default_fakta_id option').show();
             });
         });
     </script>
@@ -257,6 +207,39 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        /* Custom styles for form-switch */
+        .form-check-input.status-toggle {
+            cursor: pointer;
+        }
+
+        .form-check-input.status-toggle:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: relative;
+        }
+
+        .loading-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 1;
         }
     </style>
 @endpush

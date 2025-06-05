@@ -62,13 +62,6 @@
                                 @enderror
                             </div>
 
-                            {{-- Is Default --}}
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" name="is_default" id="is_default"
-                                    value="1" {{ old('is_default', $solusi->is_default) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_default">Jadikan sebagai solusi default</label>
-                            </div>
-
                             <div class="d-flex justify-content-end">
                                 <a href="{{ route('admin.basisPengetahuan.solusi.index') }}"
                                     class="btn btn-secondary me-2">

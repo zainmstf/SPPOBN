@@ -39,10 +39,13 @@
                             <div class="mb-3">
                                 <label for="premis" class="form-label">Premis (Fakta)</label>
                                 <select name="premis[]" id="premis" class="form-select" multiple>
+                                    <option value="START"
+                                        {{ in_array('START', explode('^', $aturan->premis)) ? 'selected' : '' }}>
+                                        START</option>
                                     @foreach ($fakta as $item)
                                         <option value="{{ $item['kode'] }}"
                                             {{ in_array($item['kode'], explode('^', $aturan->premis)) ? 'selected' : '' }}>
-                                            {{ $item['kode'] }}
+                                            {{ $item['kode'] . '-' . $item['deskripsi'] }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -108,21 +111,34 @@
             const solusiData = @json($solusi);
 
             function updateKonklusiOptions() {
+                console.log("Fungsi updateKonklusiOptions dipanggil.");
+
                 const selected = jenisKonklusi.value;
-                konklusiSelect.innerHTML = '';
+                console.log("Jenis konklusi terpilih:", selected);
+
+                konklusiSelect.innerHTML = ''; // Mengosongkan pilihan sebelumnya
 
                 const source = selected === 'fakta' ? faktaData : solusiData;
 
-                source.forEach(item => {
+                // Filter data jika yang dipilih adalah 'fakta'
+                const filteredSource = source.filter(item => {
+                    if (selected === 'fakta') {
+                        // Hanya ambil item yang kodenya dimulai dengan 'FA'
+                        return item.kode && item.kode.startsWith('FA');
+                    }
+                    // Untuk 'solusi' atau lainnya, kembalikan semua item
+                    return true;
+                });
+
+                filteredSource.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item.kode;
-                    option.textContent = item.kode || item.kode;
-                    if ((konklusiLama) === item.kode) {
-                        option.selected = true;
-                        console.log('true')
-                    }
+                    // Menggabungkan kode dan deskripsi untuk tampilan
+                    option.textContent = item.kode + ' - ' + (item.deskripsi || item.nama);
                     konklusiSelect.appendChild(option);
                 });
+
+                console.log("Pilihan konklusi diperbarui.");
             }
 
             jenisKonklusi.addEventListener('change', updateKonklusiOptions);

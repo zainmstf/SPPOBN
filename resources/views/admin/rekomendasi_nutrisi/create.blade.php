@@ -28,7 +28,7 @@
                                     <option value="">Pilih Solusi</option>
                                     @isset($solusi)
                                         @foreach ($solusi as $s)
-                                            <option value="{{ $s->id }}">{{$s->kode.'-'. $s->nama }}</option>
+                                            <option value="{{ $s->id }}">{{ $s->kode . ' - ' . $s->nama }}</option>
                                         @endforeach
                                     @endisset
                                 </select>
