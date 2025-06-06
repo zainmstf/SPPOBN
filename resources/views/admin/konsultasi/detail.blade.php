@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends(Auth::user()->role === 'admin' ? 'layouts.admin' : 'layouts.user')
 
 @section('title', 'Hasil Konsultasi - Konsultasi Osteoporosis | SPPOBN')
 @section('title-menu', 'Hasil Konsultasi Osteoporosis')
@@ -289,6 +289,35 @@
 
                         {{-- Sidebar --}}
                         <div class="col-lg-4">
+                            {{-- Action Buttons Card --}}
+                            <div class="card mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">
+                                        <i class="fas fa-tools me-2"></i>Aksi
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="btn-group-vertical w-100">
+                                        <a href="{{ route('admin.sumber-nutrisi.index') }}"
+                                            class="btn btn-success btn-block mb-2">
+                                            <i class="fas fa-fish me-2"></i>
+                                            Kelola Sumber Makanan
+                                        </a>
+                                        <a href="{{ route('admin.konsultasi.print', $konsultasi->id) }}"
+                                            class="btn btn-primary" target="_blank">
+                                            <i class="fas fa-print me-2"></i>
+                                            Print Hasil
+                                        </a>
+                                        </button>
+                                        <a href="{{ route('admin.konsultasi.riwayat') }}"
+                                            class="btn btn-secondary btn-block">
+                                            <i class="fas fa-list me-2"></i>
+                                            Riwayat Konsultasi
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
                             {{-- Summary Statistics Card --}}
                             <div class="card mb-4">
                                 <div class="card-header py-3">

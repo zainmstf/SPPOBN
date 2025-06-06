@@ -190,7 +190,7 @@ class AdminController extends Controller
                 ->groupBy('nutrisi'); // Group berdasarkan jenis nutrisi
         }
 
-        return view('user.konsultasi.result', compact(
+        return view('admin.konsultasi.detail', compact(
             'konsultasi',
             'hasilKonsultasi',
             'detailSolusi',

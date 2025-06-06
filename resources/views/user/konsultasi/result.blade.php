@@ -1,4 +1,4 @@
-@extends('layouts.user')
+@extends(Auth::user()->role === 'admin' ? 'layouts.admin' : 'layouts.user')
 
 @section('title', 'Hasil Konsultasi - Konsultasi Osteoporosis | SPPOBN')
 @section('title-menu', 'Hasil Konsultasi Osteoporosis')
