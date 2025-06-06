@@ -28,7 +28,7 @@
                                             <tr>
                                                 <th style="width: 5%;">No</th>
                                                 <th style="width: 5%;">Konsultasi ID</th>
-                                                <th style="width: 10%;">Nama Pengguna</th>
+                                                <th style="width: 10%;">Username</th>
                                                 <th style="width: 15%;">Tanggal Konsultasi</th>
                                                 <th style="width: 10%;">Rentang Waktu</th>
                                                 <th style="width: 10%;">Durasi</th>
@@ -41,31 +41,26 @@
                                                 <tr>
                                                     <td>{{ $key + 1 }}</td>
                                                     <td>{{ '#' . $konsultasi->id }}</td>
-                                                    <td>{{ $konsultasi->user->username }}</td>
-
-                                                    <td>{{ Carbon\Carbon::parse($konsultasi->created_at)->locale('id')->isoFormat('DD MMM YYYY HH:mm') }}
-                                                    </td>
-                                                    </td>
-                                                    <td>
-                                                        {{ Carbon\Carbon::parse($konsultasi->created_at)->locale('id')->isoFormat(' HH:mm:ss') }}
-                                                        -
-                                                        {{ Carbon\Carbon::parse($konsultasi->completed_at)->locale('id')->isoFormat(' HH:mm:ss') }}
+                                                    <td>{{ '@' . $konsultasi->user->username ?? 'N/A' }}</td>
+                                                    <td>{{ $konsultasi->waktu_mulai }}</td>
+                                                    <td>{{ $konsultasi->rentang_waktu }}</td>
+                                                    <td>{{ $konsultasi->durasi_konsultasi }}</td>
+                                                    <td class="truncated-text"
+                                                        title="{{ $konsultasi->hasil_konsultasi_text }}">
+                                                        {{ $konsultasi->hasil_konsultasi_text }}
                                                     </td>
                                                     <td>
-                                                        {{ \Carbon\Carbon::parse($konsultasi->completed_at)->diff(\Carbon\Carbon::parse($konsultasi->created_at))->format('%H:%I:%S') }}
-                                                    </td>
-                                                    <td class="truncated-text">
-                                                        {{ $konsultasi->hasil_konsultasi ?? 'Belum tersedia' }}
-                                                    </td>
-                                                    <td>
-                                                        <a href="{{ route('admin.konsultasi.show', $konsultasi->id) }}"
-                                                            class="btn btn-sm btn-info" target="_blank">
-                                                            <i class="bi-eye"></i> Detail
-                                                        </a>
-                                                        <a href="{{ route('admin.konsultasi.print', $konsultasi->id) }}"
-                                                            class="btn btn-sm btn-secondary" target="_blank">
-                                                            <i class="bi-printer"></i> Cetak
-                                                        </a>
+                                                        <div class="btn-group" role="group">
+                                                            <a href="{{ route('admin.konsultasi.show', $konsultasi->id) }}"
+                                                                class="btn btn-sm btn-info" target="_blank" title="Detail">
+                                                                <i class="bi-eye"></i> Detail
+                                                            </a>
+                                                            <a href="{{ route('admin.konsultasi.print', $konsultasi->id) }}"
+                                                                class="btn btn-sm btn-secondary" target="_blank"
+                                                                title="Cetak">
+                                                                <i class="bi-printer"></i> Cetak
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -97,182 +92,198 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             var table = $("#tabelKonsultasi").DataTable({
-                dom: '<"row mb-3"<"col-md-6"B><"col-md-3 date-filter-container"><"col-md-3"f>>tp', // Pastikan 'p' ada di dom
+                dom: '<"row mb-3"<"col-md-6"B><"col-md-3 date-filter-container"><"col-md-3"f>>tp',
                 buttons: [{
                         extend: "print",
-                        title: "",
+                        title: "Laporan Konsultasi Selesai",
                         text: '<i class="bi bi-printer"></i> Cetak',
-                        className: "btn btn-primary",
+                        className: "btn btn-primary btn-sm",
                         action: function(e, dt, node, config) {
-                            var dataToPrint = dt.rows({
+                            var dataToPrint = [];
+                            dt.rows({
                                 search: 'applied',
                                 page: 'all'
-                            }).data().toArray();
+                            }).every(function(rowIdx) {
+                                var data = this.data();
+                                dataToPrint.push([
+                                    data[0], // No
+                                    data[1], // Konsultasi ID
+                                    data[2], // Nama Pengguna
+                                    data[3], // Tanggal Konsultasi
+                                    data[4], // Rentang Waktu
+                                    data[5], // Durasi
+                                    $(data[6]).text() || data[
+                                        6] // Hasil Konsultasi (clean text)
+                                ]);
+                            });
+
                             if (dataToPrint.length > 0) {
-                                var jsonData = JSON.stringify(dataToPrint);
-                                var form = document.createElement('form');
-                                form.method = 'POST';
-                                form.action = "{{ route('admin.laporan.cetak_halaman') }}";
-                                form.target = '_blank'; // Buka di tab baru
-
-                                // Tambahkan CSRF token
-                                var csrf = document.querySelector('meta[name="csrf-token"]')
-                                    .getAttribute('content');
-                                var csrfInput = document.createElement('input');
-                                csrfInput.type = 'hidden';
-                                csrfInput.name = '_token';
-                                csrfInput.value = csrf;
-                                form.appendChild(csrfInput);
-
-                                // Tambahkan data JSON
-                                var input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = 'data';
-                                input.value = jsonData; // Gunakan JSON string tanpa encode
-                                form.appendChild(input);
-
-                                document.body.appendChild(form);
-                                form.submit();
-                                document.body.removeChild(form); // Bersihkan DOM
+                                submitPrintForm(dataToPrint, 'print');
                             } else {
-                                alert('Tidak ada data untuk dicetak berdasarkan filter saat ini.');
+                                showAlert(
+                                    'Tidak ada data untuk dicetak berdasarkan filter saat ini.');
                             }
                         }
                     },
-
-                    // Tombol PDF yang sudah diperbaiki
                     {
                         extend: "pdfHtml5",
                         text: '<i class="bi bi-file-earmark-pdf"></i> Unduh PDF',
-                        className: "btn btn-danger",
+                        className: "btn btn-danger btn-sm",
                         action: function(e, dt, node, config) {
-                            var dataToPrint = dt.rows({
+                            var dataToPrint = [];
+                            dt.rows({
                                 search: 'applied',
                                 page: 'all'
-                            }).data().toArray();
-
-                            console.log("Data PDF:", dataToPrint);
+                            }).every(function(rowIdx) {
+                                var data = this.data();
+                                dataToPrint.push([
+                                    data[0], // No
+                                    data[1], // Konsultasi ID
+                                    data[2], // Nama Pengguna
+                                    data[3], // Tanggal Konsultasi
+                                    data[4], // Rentang Waktu
+                                    data[5], // Durasi
+                                    $(data[6]).text() || data[
+                                        6] // Hasil Konsultasi (clean text)
+                                ]);
+                            });
 
                             if (dataToPrint.length > 0) {
-                                var jsonData = JSON.stringify(dataToPrint);
-                                console.log("JSON stringified for PDF:", jsonData.substring(0,
-                                    100) + "..."); // Tampilkan awal JSON
-
-                                var form = document.createElement('form');
-                                form.method = 'POST';
-                                form.action = "{{ route('admin.laporan.cetak_halaman') }}";
-                                form.target = '_blank'; // Buka di tab baru
-
-                                // Tambahkan CSRF token
-                                var csrf = document.querySelector('meta[name="csrf-token"]')
-                                    .getAttribute('content');
-                                var csrfInput = document.createElement('input');
-                                csrfInput.type = 'hidden';
-                                csrfInput.name = '_token';
-                                csrfInput.value = csrf;
-                                form.appendChild(csrfInput);
-
-                                // Tambahkan data JSON
-                                var input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = 'data';
-                                input.value = jsonData; // Gunakan JSON string tanpa encode
-                                form.appendChild(input);
-
-                                // Tambahkan action untuk PDF download
-                                var actionInput = document.createElement('input');
-                                actionInput.type = 'hidden';
-                                actionInput.name = 'action';
-                                actionInput.value = 'download';
-                                form.appendChild(actionInput);
-
-                                document.body.appendChild(form);
-                                form.submit();
-                                document.body.removeChild(form); // Bersihkan DOM
+                                submitPrintForm(dataToPrint, 'download');
                             } else {
-                                alert('Tidak ada data untuk diunduh.');
+                                showAlert('Tidak ada data untuk diunduh.');
                             }
                         }
                     },
                     {
                         extend: "excel",
                         text: '<i class="bi bi-file-earmark-excel"></i> Unduh Excel',
-                        className: "btn btn-success",
+                        className: "btn btn-success btn-sm",
                         exportOptions: {
-                            columns: [0, 1, 2, 3, 4]
-                        }
+                            columns: [0, 1, 2, 3, 4, 5, 6] // Include all columns except action
+                        },
+                        title: 'Laporan Konsultasi Selesai'
                     }
                 ],
                 responsive: true,
-                initComplete: function() {
-                    $(".date-filter-container").html(
-                        '<div class="input-group"><input type="text" id="dateRangePicker" class="form-control form-control-sm" placeholder="Pilih Rentang"><button id="applyDateFilter" class="btn btn-primary btn-sm">Terapkan</button><button id="resetDateFilter" class="btn btn-outline-secondary btn-sm">Reset</button></div>'
-                    );
-
-                    // Initialize date range picker
-                    $("#dateRangePicker").daterangepicker({
-                        locale: {
-                            format: "DD MMMM",
-                            applyLabel: "Pilih",
-                            cancelLabel: "Batal",
-                            fromLabel: "Dari",
-                            toLabel: "Sampai",
-                            customRangeLabel: "Kustom",
-                            weekLabel: "M",
-                            daysOfWeek: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
-                            monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
-                                "Juli", "Agustus", "September", "Oktober", "November",
-                                "Desember"
-                            ],
-                            firstDay: 1,
-                        },
-                        opens: "left",
-                        autoUpdateInput: false,
-                    });
-
-                    $("#dateRangePicker").on("apply.daterangepicker", function(ev, picker) {
-                        $(this).val(picker.startDate.format("DD MMM YYYY") + " - " +
-                            picker
-                            .endDate
-                            .format("DD MMM YYYY"));
-                        table.draw();
-                    });
-
-                    $("#dateRangePicker").on("cancel.daterangepicker", function(ev, picker) {
-                        $(this).val("");
-                        table.draw();
-                    });
-
-                    $("#applyDateFilter").on("click", function() {
-                        table.draw();
-                    });
-
-                    $("#resetDateFilter").on("click", function() {
-                        $("#dateRangePicker").val("");
-                        table.draw();
-                    });
+                pageLength: 25,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
                 },
+                initComplete: function() {
+                    initializeDateFilter();
+                }
             });
 
-            // Custom date range filter function
+            function submitPrintForm(data, action) {
+                try {
+                    var jsonData = JSON.stringify(data);
+                    var form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = "{{ route('admin.laporan.cetak_halaman') }}";
+                    form.target = '_blank';
+
+                    // CSRF token
+                    var csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    form.appendChild(csrfInput);
+
+                    // Data
+                    var dataInput = document.createElement('input');
+                    dataInput.type = 'hidden';
+                    dataInput.name = 'data';
+                    dataInput.value = jsonData;
+                    form.appendChild(dataInput);
+
+                    // Action
+                    if (action) {
+                        var actionInput = document.createElement('input');
+                        actionInput.type = 'hidden';
+                        actionInput.name = 'action';
+                        actionInput.value = action;
+                        form.appendChild(actionInput);
+                    }
+
+                    document.body.appendChild(form);
+                    form.submit();
+                    document.body.removeChild(form);
+                } catch (error) {
+                    console.error('Error submitting form:', error);
+                    showAlert('Terjadi kesalahan saat memproses data.');
+                }
+            }
+
+            function initializeDateFilter() {
+                $(".date-filter-container").html(
+                    '<div class="input-group input-group-sm">' +
+                    '<input type="text" id="dateRangePicker" class="form-control" placeholder="Filter Tanggal">' +
+                    '<button id="applyDateFilter" class="btn btn-primary">Terapkan</button>' +
+                    '<button id="resetDateFilter" class="btn btn-outline-secondary">Reset</button>' +
+                    '</div>'
+                );
+
+                $("#dateRangePicker").daterangepicker({
+                    locale: {
+                        format: "DD MMM YYYY",
+                        applyLabel: "Pilih",
+                        cancelLabel: "Batal",
+                        fromLabel: "Dari",
+                        toLabel: "Sampai",
+                        customRangeLabel: "Kustom",
+                        weekLabel: "M",
+                        daysOfWeek: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
+                        monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+                        ],
+                        firstDay: 1,
+                    },
+                    opens: "left",
+                    autoUpdateInput: false,
+                });
+
+                $("#dateRangePicker").on("apply.daterangepicker", function(ev, picker) {
+                    $(this).val(picker.startDate.format("DD MMM YYYY") + " - " + picker.endDate.format(
+                        "DD MMM YYYY"));
+                    table.draw();
+                });
+
+                $("#dateRangePicker").on("cancel.daterangepicker", function(ev, picker) {
+                    $(this).val("");
+                    table.draw();
+                });
+
+                $("#applyDateFilter, #resetDateFilter").on("click", function() {
+                    if (this.id === 'resetDateFilter') {
+                        $("#dateRangePicker").val("");
+                    }
+                    table.draw();
+                });
+            }
+
+            function showAlert(message) {
+                alert(message);
+            }
+
+            // Custom date range filter
             $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
                 var dateRangeVal = $("#dateRangePicker").val();
                 if (!dateRangeVal) {
                     return true;
                 }
 
-                var dateRange = dateRangeVal.split(" - ");
-                var startDate = moment(dateRange[0], "DD MMMM");
-                var endDate = moment(dateRange[1], "DD MMMM");
+                try {
+                    var dateRange = dateRangeVal.split(" - ");
+                    var startDate = moment(dateRange[0], "DD MMM YYYY");
+                    var endDate = moment(dateRange[1], "DD MMM YYYY");
+                    var rowDate = moment(data[3], "DD MMM YYYY HH:mm");
 
-                // Get date from column 3 (Tanggal Konsultasi)
-                var dateStr = data[3];
-                var rowDate = moment(dateStr, "DD MMMM");
-
-                if (rowDate.isBetween(startDate, endDate, null, "[]")) {
+                    return rowDate.isBetween(startDate, endDate, 'day', '[]');
+                } catch (error) {
+                    console.error('Date filter error:', error);
                     return true;
                 }
-                return false;
             });
         });
     </script>
@@ -285,32 +296,34 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
-         .truncated-text {
+        .truncated-text {
             white-space: nowrap;
-            /* Mencegah teks pindah ke baris baru */
             overflow: hidden;
-            /* Menyembunyikan teks yang melampaui batas */
             text-overflow: ellipsis;
-            /* Menampilkan elipsis (...) untuk teks yang terpotong */
-            max-width: 300px;
-            /* Atur lebar maksimum yang diinginkan */
-        }
-        .recommendations ol {
-            padding-left: 25px;
+            max-width: 250px;
+            cursor: help;
         }
 
-        .recommendations b {
-            display: block;
-            margin-bottom: 10px;
-            margin-top: 15px;
+        .btn-group .btn {
+            margin-right: 2px;
         }
 
-        .recommendations li {
-            margin-bottom: 5px;
+        .btn-group .btn:last-child {
+            margin-right: 0;
         }
 
+        #tabelKonsultasi tbody tr td:nth-child(5),
         #tabelKonsultasi tbody tr td:nth-child(6) {
             white-space: nowrap;
+            font-family: monospace;
+        }
+
+        .input-group-sm .btn {
+            font-size: 0.875rem;
+        }
+
+        .date-filter-container .input-group {
+            min-width: 300px;
         }
     </style>
 @endpush

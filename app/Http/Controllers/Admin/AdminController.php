@@ -190,7 +190,7 @@ class AdminController extends Controller
                 ->groupBy('nutrisi'); // Group berdasarkan jenis nutrisi
         }
 
-        return view('admin.konsultasi.detail', compact(
+        return view('user.konsultasi.result', compact(
             'konsultasi',
             'hasilKonsultasi',
             'detailSolusi',
@@ -201,33 +201,59 @@ class AdminController extends Controller
         ));
     }
 
-    public function cetak(Konsultasi $konsultasi)
+    public function cetak($id)
     {
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Anda tidak memiliki akses ke riwayat konsultasi ini.');
+        $konsultasi = Konsultasi::with('user')->where('id', $id)->first();
+
+        $forwardChaining = new ForwardChainingService($konsultasi);
+
+        // Get hasil konsultasi
+        $hasilKonsultasi = $forwardChaining->getHasilKonsultasi();
+        $detailSolusi = $forwardChaining->getDetailSolusi();
+        $traceInferensi = $forwardChaining->getTraceInferensi();
+
+        // PERBAIKAN: Get status message untuk hasil
+        $statusMessage = $forwardChaining->getStatusMessage();
+
+        // Get jawaban user untuk display
+        $jawabanUser = $konsultasi->detailKonsultasi()
+            ->with('fakta')
+            ->get()
+            ->map(function ($detail) {
+                return [
+                    'kode' => $detail->fakta->kode,
+                    'pertanyaan' => $detail->fakta->pertanyaan,
+                    'jawaban' => $detail->jawaban,
+                    'kategori' => $detail->fakta->kategori
+                ];
+            });
+
+        $rekomendasiNutrisi = collect();
+
+        if (!empty($hasilKonsultasi)) {
+            // Ambil ID solusi dari hasil konsultasi
+            $solusiIds = collect($detailSolusi)->pluck('id');
+
+            // Get rekomendasi nutrisi dengan sumber nutrisi
+            $rekomendasiNutrisi = RekomendasiNutrisi::whereIn('solusi_id', $solusiIds)
+                ->with([
+                    'sumberNutrisi' => function ($query) {
+                        $query->orderBy('jenis_sumber');
+                    }
+                ])
+                ->get()
+                ->groupBy('nutrisi'); // Group berdasarkan jenis nutrisi
         }
 
-        $konsultasi->load('user');
-        $detailKonsultasi = $konsultasi->detailKonsultasi()->with('fakta')->get();
-        $inferensiLog = $konsultasi->inferensiLog()->with('aturan')->get();
-        $solusiAkhir = null;
-        $inferensiSolusi = $inferensiLog->filter(function ($item) {
-            if (!$item->aturan) {
-                Log::warning("InferensiLog ID {$item->id} tidak memiliki aturan terkait.");
-                return false;
-            }
-            return $item->aturan->jenis_konklusi === 'solusi';
-        })->last();
-
-        if ($inferensiSolusi) {
-            $solusiAkhir = Solusi::find($inferensiSolusi->aturan->solusi_id);
-            if ($solusiAkhir) {
-                $solusiAkhir->load('rekomendasiNutrisi.sumberNutrisi');
-            }
-        }
-
-        // Mengembalikan tampilan dengan data konsultasi dan aturan yang relevan
-        return view('user.konsultasi.print', compact('konsultasi', 'detailKonsultasi', 'inferensiLog', 'solusiAkhir'));
+        return view('user.konsultasi.print', compact(
+            'konsultasi',
+            'hasilKonsultasi',
+            'detailSolusi',
+            'traceInferensi',
+            'jawabanUser',
+            'statusMessage',
+            'rekomendasiNutrisi'
+        ));
     }
     public function statistik()
     {
@@ -322,40 +348,89 @@ class AdminController extends Controller
     {
         $laporanKonsultasi = Konsultasi::with('user')
             ->where('status', 'selesai')
-            ->orderBy('created_at', 'asc')
+            ->orderBy('created_at', 'desc') // Ubah ke desc untuk data terbaru di atas
             ->get();
+
+        // Proses setiap konsultasi untuk mendapatkan data yang diperlukan
+        $laporanKonsultasi->each(function ($konsultasi) {
+            $hasilKonsultasi = $konsultasi->hasil_konsultasi; // Ini diasumsikan sudah di-cast ke array/json di model
+
+            // Inisialisasi default values
+            $konsultasi->solusi_rekomendasi = collect();
+            $konsultasi->jumlah_fakta = 0;
+            $konsultasi->hasil_konsultasi_text = 'Tidak ada hasil konsultasi'; // Default string jika tidak ada hasil
+
+            // Pastikan hasil_konsultasi adalah array dan tidak null
+            if (is_array($hasilKonsultasi)) {
+                // Ambil detail solusi jika tersedia
+                if (isset($hasilKonsultasi['solusi']) && is_array($hasilKonsultasi['solusi'])) {
+                    $solusiCodes = $hasilKonsultasi['solusi'];
+
+                    $solusiDetails = Solusi::whereIn('kode', $solusiCodes)
+                        ->select('nama', 'deskripsi')
+                        ->get();
+
+                    $konsultasi->solusi_rekomendasi = $solusiDetails;
+
+                    // Buat teks hasil konsultasi dari nama solusi yang dipisahkan koma
+                    if ($solusiDetails->isNotEmpty()) {
+                        $hasil = $solusiDetails->map(function ($solusi) {
+                            return $solusi->nama;
+                        })->implode(', ');
+                        $konsultasi->hasil_konsultasi_text = $hasil; // Ini akan menjadi string "Solusi A, Solusi B, Solusi C"
+                    }
+                }
+
+                // Hitung jumlah fakta yang tersedia
+                if (isset($hasilKonsultasi['fakta_tersedia']) && is_array($hasilKonsultasi['fakta_tersedia'])) {
+                    $konsultasi->jumlah_fakta = count($hasilKonsultasi['fakta_tersedia']);
+                }
+            }
+
+            // Format waktu dan durasi
+            $mulai = Carbon::parse($konsultasi->created_at);
+            $selesai = $konsultasi->completed_at ? Carbon::parse($konsultasi->completed_at) : Carbon::parse($konsultasi->updated_at);
+
+            $konsultasi->waktu_mulai = $mulai->locale('id')->isoFormat('DD MMM YYYY HH:mm');
+            $konsultasi->rentang_waktu = $mulai->locale('id')->isoFormat('HH:mm:ss') . ' - ' . $selesai->locale('id')->isoFormat('HH:mm:ss');
+            $konsultasi->durasi_konsultasi = $mulai->diff($selesai)->format('%H:%I:%S');
+        });
 
         return view('admin.konsultasi.laporan', compact('laporanKonsultasi'));
     }
 
     public function halamanCetak(Request $request)
     {
-        $user = Auth::user();
         try {
-            $dataJson = json_decode($request->input('data'), true);
-            Log::info('Decoded data: ' . print_r($dataJson, true));
+            $data = json_decode($request->data, true);
+            $action = $request->input('action', 'print');
 
-            $action = $request->input('action'); // gunakan input() bukan query()
-
-            if (!empty($dataJson) && is_array($dataJson)) {
-                $dataCetak = $dataJson;
-
-                if ($action === 'download') {
-                    // Generate PDF menggunakan library server-side
-                    $tanggal = date('Y-m-d'); // Format: 2025-05-12
-                    $namaFile = 'laporan_konsultasi_' . $tanggal . '.pdf';
-                    $pdf = Pdf::loadView('admin.konsultasi.cetak_halaman', ['data' => $dataCetak, 'user' => $user]);
-                    return $pdf->download($namaFile);
-                } else {
-                    return view('admin.konsultasi.cetak_halaman', ['data' => $dataCetak, 'user' => $user],);
-                }
-            } else {
-                Log::warning('Data JSON tidak valid atau kosong');
-                return redirect()->back()->with('error', 'Tidak ada data valid untuk diproses.');
+            if (!$data || !is_array($data)) {
+                return back()->with('error', 'Data tidak valid untuk dicetak.');
             }
+
+            // Proses data untuk tampilan cetak
+            $processedData = [];
+            foreach ($data as $row) {
+                $processedData[] = [
+                    'no' => $row[0] ?? '',
+                    'konsultasi_id' => $row[1] ?? '',
+                    'nama_pengguna' => $row[2] ?? '',
+                    'tanggal_konsultasi' => $row[3] ?? '',
+                    'rentang_waktu' => $row[4] ?? '',
+                    'durasi' => $row[5] ?? '',
+                    'hasil_konsultasi' => $row[6] ?? '',
+                ];
+            }
+
+            if ($action === 'download') {
+                return $this->downloadPDF($processedData);
+            }
+
+            return view('admin.konsultasi.cetak_halaman', compact('processedData'));
+
         } catch (\Exception $e) {
-            Log::error('Error pada halaman cetak: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 }

@@ -3,128 +3,193 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Konsultasi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Konsultasi Selesai</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
-            margin: 40px;
+            font-family: Arial, sans-serif;
+            margin: 20px;
             color: #333;
         }
 
-        h1,
-        h2 {
-            margin-bottom: 10px;
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #007bff;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-cetak {
+            margin: 20px 0;
+            font-size: 12px;
+            color: #666;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 20px;
+            font-size: 12px;
         }
 
         th,
         td {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
         }
 
         th {
-            background-color: #f2f2f2;
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
         }
 
-        .btn-print {
-            padding: 8px 16px;
-            background-color: #007BFF;
-            color: #fff;
-            border: none;
-            cursor: pointer;
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .hasil-konsultasi {
+            max-width: 200px;
+            word-wrap: break-word;
+            font-size: 11px;
+        }
+
+        .durasi {
+            font-family: monospace;
+            text-align: center;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: right;
+            font-size: 12px;
+            color: #666;
         }
 
         @media print {
-            .btn-print {
-                display: none;
+            body {
+                margin: 0;
+                padding: 15px;
+            }
+
+            .header {
+                margin-bottom: 20px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th,
+            td {
+                padding: 6px;
             }
         }
     </style>
 </head>
 
 <body>
-    <button onclick="window.print()" class="btn-print">🖨️ Cetak Laporan</button>
-
-    <h1>Laporan Konsultasi</h1>
-    <p><strong>Dicetak oleh:</strong> {{ $user->nama_lengkap ?? 'Admin' }}</p>
-    <p><strong>Waktu Cetak:</strong> {{ now()->format('d-m-Y H:i') }}</p>
-
-    <div class="section">
-        <h2>Data Konsultasi</h2>
-        <table>
-            <thead>
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">No</th>
-                        <th style="width: 5%;">Konsultasi ID</th>
-                        <th style="width: 10%;">Nama Pengguna</th>
-                        <th style="width: 20%;">Tanggal Konsultasi</th>
-                        <th style="width: 20%;">Rentang Waktu</th>
-                        <th style="width: 15%;">Durasi</th>
-                        <th style="width: 15%;">Hasil Konsultasi</th>
-                    </tr>
-                </thead>
-            </thead>
-            <tbody>
-                @foreach ($data as $row)
-                    <tr>
-                        <td>{{ $row[0] }}</td>
-                        <td>{{ $row[1] }}</td>
-                        <td>{{ $row[2] }}</td>
-                        <td>{{ $row[3] }}</td>
-                        <td>{{ $row[4] }}</td>
-                        <td>{{ $row[5] }}</td>
-                        <?php
-                        $originalString = $row[6];
-                        $lines = explode("\n", $originalString);
-                        $results = [];
-                        foreach ($lines as $line) {
-                            if (strpos($line, '- ') !== false) {
-                                $results[] = trim(substr($line, strpos($line, '- ') + 2));
-                            }
-                        }
-                        $processedString = implode(', ', $results);
-                        ?>
-                        
-                        <td>{{ $processedString }}</td>      
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+    <div class="header">
+        <h1>Laporan Konsultasi Selesai</h1>
+        <p>Sistem Pakar Penanganan Osteoporosis Berbasis Nutrisi (SPPOBN)</p>
     </div>
 
-    <footer style="margin-top: 60px; font-size: 12px; color: #999;">
-        <p>Laporan ini dicetak dari sistem pakar osteoporosis. | {{ now()->format('d-m-Y H:i') }}</p>
-    </footer>
+    <div class="info-cetak">
+        <p><strong>Tanggal Cetak:</strong> {{ date('d F Y, H:i:s') }}</p>
+        <p><strong>Total Data:</strong> {{ count($processedData) }} konsultasi</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">No</th>
+                <th style="width: 10%;">ID Konsultasi</th>
+                <th style="width: 15%;">Username</th>
+                <th style="width: 18%;">Tanggal Konsultasi</th>
+                <th style="width: 15%;">Rentang Waktu</th>
+                <th style="width: 10%;">Durasi</th>
+                <th style="width: 27%;">Hasil Konsultasi</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($processedData as $index => $data)
+                <tr>
+                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td class="text-center">{{ $data['konsultasi_id'] }}</td>
+                    <td>{{ $data['nama_pengguna'] }}</td>
+                    <td>{{ $data['tanggal_konsultasi'] }}</td>
+                    <td class="text-center">{{ $data['rentang_waktu'] }}</td>
+                    <td class="text-center durasi">{{ $data['durasi'] }}</td>
+                    <td class="hasil-konsultasi">
+                        <?php
+                        $hasilKonsultasi = $data['hasil_konsultasi'] ?: 'Tidak ada hasil konsultasi';
+                        $processedHtml = '';
+                        
+                        // Cek apakah ada hasil konsultasi dan bukan string default 'Tidak ada hasil konsultasi'
+                        if ($hasilKonsultasi !== 'Tidak ada hasil konsultasi' && !empty($hasilKonsultasi)) {
+                            // Pecah string berdasarkan koma dan spasi setelahnya, lalu trim setiap item
+                            $items = array_map('trim', explode(',', $hasilKonsultasi));
+                        
+                            // Buat daftar UL jika ada item
+                            if (!empty($items)) {
+                                $processedHtml .= '<ul>';
+                                foreach ($items as $item) {
+                                    // Pastikan item tidak kosong setelah di-trim
+                                    if (!empty($item)) {
+                                        $processedHtml .= '<li>' . htmlspecialchars($item) . '</li>';
+                                    }
+                                }
+                                $processedHtml .= '</ul>';
+                            } else {
+                                // Jika setelah dipecah tidak ada item yang valid (misal: string hanya spasi atau koma)
+                                $processedHtml = 'Tidak ada hasil konsultasi yang valid';
+                            }
+                        } else {
+                            // Jika hasil konsultasi memang kosong atau string default
+                            $processedHtml = 'Tidak ada hasil konsultasi';
+                        }
+                        ?>
+                        {!! $processedHtml !!}
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" class="text-center" style="padding: 20px; color: #666;">
+                        Tidak ada data konsultasi yang dapat ditampilkan
+                    </td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>Dicetak pada: {{ date('d F Y, H:i:s') }} WIB</p>
+        <p>Administrator SPPOBN</p>
+    </div>
 
     <script>
+        // Auto print when page loads (for print action)
         window.onload = function() {
-            // Tambahkan media query untuk mengatur gaya cetak
-            const style = document.createElement('style');
-            style.setAttribute('type', 'text/css');
-            style.innerHTML = `
-      @media print {
-        @page {
-          size: landscape;
-          margin: 1cm; /* Atur margin sesuai kebutuhan */
-        }
-        body {
-          zoom: 0.75; /* Untuk skala 75% */
-          -moz-transform: scale(0.75); /* Untuk Firefox */
-          -moz-transform-origin: 0 0;
-          transform-origin: 0 0;
-        }
-      }
-    `;
-            document.head.appendChild(style);
             window.print();
-        };
+        }
     </script>
 </body>
 

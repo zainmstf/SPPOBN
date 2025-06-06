@@ -4,7 +4,6 @@
 
 @section('content')
     <div class="print-container">
-        <!-- Header dengan Border -->
         <div class="print-header mb-4 text-center border-bottom pb-3">
             <div class="header-logo mb-3">
                 <img src="{{ asset('storage/img/logo/logo-dashboard.png') }}" alt="Logo" width="120">
@@ -24,7 +23,6 @@
             </div>
         </div>
 
-        <!-- Informasi Pasien dengan Card -->
         <div class="print-section mb-4">
             <div class="section-header bg-primary text-white p-2 rounded-top">
                 <h4 class="section-title mb-0">
@@ -57,10 +55,9 @@
             </div>
         </div>
 
-        <!-- Status Hasil Konsultasi -->
         <div class="print-section mb-4">
             <div
-                class="result-status p-3 rounded 
+                class="result-status p-3 rounded
                 @if (!empty($detailSolusi)) bg-success text-white
                 @else bg-info text-dark @endif">
                 <div class="d-flex align-items-center">
@@ -92,7 +89,6 @@
             </div>
         </div>
 
-        <!-- Rekomendasi (jika ada) -->
         @if (!empty($detailSolusi))
             <div class="mb-4">
                 <div class="section-header bg-success text-white p-2 rounded-top">
@@ -129,7 +125,6 @@
             </div>
         @endif
 
-        <!-- Rekomendasi Nutrisi (jika ada) -->
         @if (!empty($rekomendasiNutrisi) && count($rekomendasiNutrisi) > 0)
             <div class="mb-4">
                 <div class="section-header bg-success text-white p-2 rounded-top">
@@ -179,42 +174,45 @@
                                             <i class="fas fa-list-ul me-2"></i>
                                             Sumber Nutrisi:
                                         </h6>
-                                        <div class="row">
+                                        {{-- MODIFIKASI DIMULAI DI SINI --}}
+                                        <div class="row row-cols-md-2 g-3"> {{-- Menggunakan row-cols-md-2 dan g-3 (gap) --}}
                                             @foreach ($recommendation->sumberNutrisi as $sumber)
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="sumber-item border rounded p-3 h-100">
-                                                        <div class="d-flex">
-                                                            @if ($sumber->image)
-                                                                <img src="{{ asset('storage/' . $sumber->image) }}"
-                                                                    alt="{{ $sumber->nama_sumber }}" class="rounded me-3"
-                                                                    width="60" height="60">
-                                                            @endif
-                                                            <div>
-                                                                <h6 class="sumber-name mb-1">{{ $sumber->nama_sumber }}
-                                                                </h6>
-                                                                <div class="sumber-meta text-muted">
-                                                                    <div class="meta-item">
-                                                                        <i class="fas fa-tag me-1"></i>
-                                                                        <small>Jenis:
-                                                                            {{ ucfirst($sumber->jenis_sumber) }}</small>
-                                                                    </div>
-                                                                    <div class="meta-item">
-                                                                        <i class="fas fa-weight me-1"></i>
-                                                                        <small>Takaran: {{ $sumber->takaran }}</small>
-                                                                    </div>
-                                                                    @if ($sumber->catatan)
-                                                                        <div class="meta-item">
-                                                                            <i class="fas fa-sticky-note me-1"></i>
-                                                                            <small>Catatan: {{ $sumber->catatan }}</small>
-                                                                        </div>
-                                                                    @endif
+                                                <div class="col"> {{-- Hanya perlu col, karena row-cols-md-2 sudah mengatur 2 kolom --}}
+                                                    <div
+                                                        class="sumber-item border rounded p-3 h-100 d-flex align-items-start">
+                                                        {{-- Menambahkan d-flex dan align-items-start --}}
+                                                        @if ($sumber->image)
+                                                            <img src="{{ asset('storage/' . $sumber->image) }}"
+                                                                alt="{{ $sumber->nama_sumber }}" class="rounded me-3"
+                                                                width="60" height="60">
+                                                        @endif
+                                                        <div>
+                                                            <h6 class="sumber-name mb-1">{{ $sumber->nama_sumber }}
+                                                            </h6>
+                                                            <div class="sumber-meta text-muted">
+                                                                <div class="meta-item">
+                                                                    <small> <i class="fas fa-tag me-1"></i> Jenis:
+                                                                        {{ ucfirst($sumber->jenis_sumber) }}</small>
                                                                 </div>
+                                                                <div class="meta-item">
+                                                                    <small><i class="fas fa-weight me-1"></i> Takaran:
+                                                                        {{ $sumber->takaran }}</small>
+                                                                </div>
+                                                                @if ($sumber->catatan)
+                                                                    <div class="meta-item">
+
+                                                                        <small> <i
+                                                                                class="fas fa-sticky-note me-1"></i>Catatan:
+                                                                            {{ $sumber->catatan }}</small>
+                                                                    </div>
+                                                                @endif
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             @endforeach
                                         </div>
+                                        {{-- MODIFIKASI BERAKHIR DI SINI --}}
                                     </div>
                                 </div>
                             @endforeach
@@ -224,7 +222,6 @@
             </div>
         @endif
 
-        <!-- Saran Umum -->
         <div class="print-section mb-4">
             <div class="section-header bg-primary text-white p-2 rounded-top">
                 <h4 class="section-title mb-0">
@@ -285,7 +282,6 @@
             </div>
         </div>
 
-        <!-- Disclaimer dan Footer -->
         <div class="print-footer mt-4">
             <div class="disclaimer alert alert-warning p-3 mb-4">
                 <div class="d-flex">
@@ -487,9 +483,16 @@
             color: #6c757d;
         }
 
+        /* MODIFIKASI CSS UNTUK 2 KOLOM */
         .sumber-item {
             background-color: #fff;
             transition: all 0.2s;
+            display: flex;
+            /* Memastikan flexbox untuk konten di dalam item */
+            align-items: flex-start;
+            /* Konten rata atas */
+            height: 100%;
+            /* Memastikan tinggi yang sama */
         }
 
         .sumber-item:hover {
@@ -635,15 +638,41 @@
                 page-break-before: always;
             }
 
-            .solution-item,
-            {
-            page-break-inside: avoid;
-        }
+            .solution-item {
+                page-break-inside: avoid;
+            }
 
-        .print-footer {
-            margin-top: 20px;
-            padding-top: 10px;
-        }
+            .print-footer {
+                margin-top: 20px;
+                padding-top: 10px;
+            }
+
+            /* Untuk 2 kolom di cetak */
+            .sumber-nutrisi .row {
+                display: flex;
+                flex-wrap: wrap;
+                margin-left: -10px;
+                /* Adjust as needed for gutter */
+                margin-right: -10px;
+                /* Adjust as needed for gutter */
+            }
+
+            .sumber-nutrisi .col {
+                flex: 0 0 50%;
+                /* Membuat setiap kolom memakan 50% lebar */
+                max-width: 50%;
+                padding-left: 10px;
+                /* Adjust as needed for gutter */
+                padding-right: 10px;
+                /* Adjust as needed for gutter */
+                box-sizing: border-box;
+                /* Pastikan padding dihitung dalam lebar */
+            }
+
+            .sumber-item {
+                margin-bottom: 15px;
+                /* Spasi antar item sumber nutrisi */
+            }
         }
     </style>
 @endpush
