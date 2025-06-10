@@ -152,7 +152,7 @@
                                                         @endif
                                                     </td>
                                                     <td>
-                                                        <a href="{{ route('admin.konsultasi.show', $konsultasi->id) }}"
+                                                        <a href="{{ route('riwayat.show', $konsultasi->id) }}"
                                                             class="btn btn-sm btn-info">
                                                             <i class="bi-eye-fill"></i> Detail
                                                         </a>
