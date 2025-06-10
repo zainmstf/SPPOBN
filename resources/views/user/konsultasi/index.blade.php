@@ -407,7 +407,7 @@
                                 </button>
                             </form>
 
-                            <a href="{{ route('konsultasi.index') }}" class="btn btn-outline-secondary btn-lg">
+                            <a href="{{ route('riwayat.index') }}" class="btn btn-outline-secondary btn-lg">
                                 <i class="bi bi-clock-history me-2"></i>
                                 Lihat Riwayat Konsultasi
                             </a>

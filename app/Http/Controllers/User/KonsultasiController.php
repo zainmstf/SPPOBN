@@ -292,7 +292,7 @@ class KonsultasiController extends Controller
 
         $forwardChaining = new ForwardChainingService($konsultasi);
         $forwardChaining->resetKonsultasi();
-
+        $forwardChaining->applyStartingRule();
         return redirect()->route('konsultasi.question', $id)
             ->with('success', 'Konsultasi telah direset dan dimulai dari awal');
     }

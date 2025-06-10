@@ -20,12 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // if (app()->environment('local')) {
-        //     // Gunakan APP_URL dari .env (Ngrok)
-        //     URL::forceRootUrl(config('app.url'));
+        if (app()->environment('local')) {
+            // Gunakan APP_URL dari .env (Ngrok)
+            URL::forceRootUrl(config('app.url'));
 
-        //     // Paksa semua URL gunakan https
-        //     URL::forceScheme('https');
-        // }
+            // Paksa semua URL gunakan https
+            URL::forceScheme('https');
+        }
     }
 }

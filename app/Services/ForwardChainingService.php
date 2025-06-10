@@ -70,35 +70,25 @@ class ForwardChainingService
         // Proses inferensi berdasarkan sesi
         $this->prosesInferensi();
 
-        // PERBAIKAN: Cek apakah sesi ini dapat menghasilkan fakta antara atau solusi
+        // Cek apakah sesi ini dapat menghasilkan fakta antara atau solusi
         if (!$this->canSesiProgress()) {
-            return null; // Tidak bisa lanjut, sesi berakhir
+            return null;
         }
 
-        // Cek apakah ada pertanyaan yang perlu dijawab di sesi ini
-        $aturanBelumTerpenuhi = $this->getAturanBelumTerpenuhi();
+        // PERBAIKAN: Ambil pertanyaan berdasarkan prioritas aturan yang tepat
+        $pertanyaanBerikutnya = $this->getPertanyaanBerikutnyaDenganPrioritas();
 
-        if (empty($aturanBelumTerpenuhi)) {
-            return null; // Tidak ada pertanyaan lagi di sesi ini
-        }
-
-        // Ambil pertanyaan dari aturan pertama yang belum terpenuhi
-        foreach ($aturanBelumTerpenuhi as $aturan) {
-            $pertanyaanBelumDijawab = $this->getPertanyaanBelumDijawab($aturan);
-
-            if (!empty($pertanyaanBelumDijawab)) {
-                // Ambil pertanyaan pertama yang belum dijawab
-                $kodeFakta = $pertanyaanBelumDijawab[0];
-                $fakta = Fakta::where('kode', $kodeFakta)->first();
-
-                if ($fakta) {
-                    return $fakta;
-                }
+        if ($pertanyaanBerikutnya) {
+            $fakta = Fakta::where('kode', $pertanyaanBerikutnya)->first();
+            if ($fakta) {
+                return $fakta;
             }
         }
 
         return null;
     }
+
+
 
     /**
      * METODE BARU: Cek apakah sesi tertentu menghasilkan fakta antara atau solusi
@@ -406,10 +396,12 @@ class ForwardChainingService
     /**
      * Get aturan yang belum terpenuhi dan memiliki pertanyaan yang bisa ditanya
      */
-    protected function getAturanBelumTerpenuhi()
+    protected function getPertanyaanBerikutnyaDenganPrioritas()
     {
         $aturanSesi = $this->getAturanBySesi();
-        $aturanBelumTerpenuhi = [];
+
+        // Buat array untuk menyimpan semua pertanyaan yang mungkin dengan prioritasnya
+        $pertanyaanDenganPrioritas = [];
 
         foreach ($aturanSesi as $aturan) {
             // Skip aturan yang sudah terpakai
@@ -423,19 +415,70 @@ class ForwardChainingService
             }
 
             // Cek apakah aturan ini memiliki potensi untuk dipenuhi
-            if ($this->hasRulePotential($aturan)) {
-                $pertanyaanBelumDijawab = $this->getPertanyaanBelumDijawab($aturan);
-                if (!empty($pertanyaanBelumDijawab)) {
-                    $aturanBelumTerpenuhi[] = $aturan;
+            if (!$this->hasRulePotential($aturan)) {
+                continue;
+            }
 
-                    // Hentikan pencarian setelah menemukan aturan pertama yang memiliki pertanyaan
-                    // yang bisa ditanyakan dan memiliki potensi untuk dipenuhi
-                    break;
+            // Ambil pertanyaan yang belum dijawab dari aturan ini
+            $pertanyaanBelumDijawab = $this->getPertanyaanBelumDijawab($aturan);
+
+            if (!empty($pertanyaanBelumDijawab)) {
+                // Ekstrak nomor aturan untuk prioritas
+                $prioritas = $this->ekstrakPrioritasAturan($aturan->kode);
+
+                foreach ($pertanyaanBelumDijawab as $kodeFakta) {
+                    // Jika pertanyaan belum ada dalam array atau prioritas lebih tinggi
+                    if (
+                        !isset($pertanyaanDenganPrioritas[$kodeFakta]) ||
+                        $prioritas < $pertanyaanDenganPrioritas[$kodeFakta]['prioritas']
+                    ) {
+
+                        $pertanyaanDenganPrioritas[$kodeFakta] = [
+                            'prioritas' => $prioritas,
+                            'aturan_kode' => $aturan->kode,
+                            'fakta_kode' => $kodeFakta
+                        ];
+                    }
                 }
             }
         }
 
-        return $aturanBelumTerpenuhi;
+        // Jika tidak ada pertanyaan yang bisa ditanyakan
+        if (empty($pertanyaanDenganPrioritas)) {
+            return null;
+        }
+
+        // Urutkan berdasarkan prioritas (nomor terkecil = prioritas tertinggi)
+        uasort($pertanyaanDenganPrioritas, function ($a, $b) {
+            return $a['prioritas'] <=> $b['prioritas'];
+        });
+
+        // Ambil pertanyaan dengan prioritas tertinggi
+        $pertanyaanPrioritas = reset($pertanyaanDenganPrioritas);
+
+        Log::info("Pertanyaan berikutnya: {$pertanyaanPrioritas['fakta_kode']} dari aturan {$pertanyaanPrioritas['aturan_kode']} dengan prioritas {$pertanyaanPrioritas['prioritas']}");
+
+        return $pertanyaanPrioritas['fakta_kode'];
+    }
+
+
+    protected function ekstrakPrioritasAturan($kodeAturan)
+    {
+        // Contoh: R4.1 -> 1, R4.2 -> 2, R4.5b -> 5.1, R4.18a -> 18.1
+        if (preg_match('/R\d+\.(\d+)([a-z]?)/', $kodeAturan, $matches)) {
+            $nomorUtama = (int) $matches[1];
+            $subNomor = 0;
+
+            // Jika ada huruf (seperti 'a', 'b', 'c'), berikan sub-prioritas
+            if (isset($matches[2]) && !empty($matches[2])) {
+                $subNomor = ord($matches[2]) - ord('a') + 1; // a=1, b=2, c=3, dst
+            }
+
+            // Gabungkan nomor utama dengan sub-nomor (contoh: 5.1, 5.2, 5.3)
+            return $nomorUtama + ($subNomor * 0.1);
+        }
+
+        return 999; // Default prioritas rendah jika tidak bisa diparse
     }
     public function applyStartingRule()
     {
